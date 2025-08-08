@@ -1,3 +1,5 @@
+"use client"
+
 import { GoogleAuthProvider } from "firebase/auth";
 import { Button, Checkbox, Label, Modal, TextInput } from "flowbite-react";
 import Link from "next/link";
