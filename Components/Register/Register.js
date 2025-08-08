@@ -19,9 +19,9 @@ const Register = () => {
    // console.log(user)
 
    const router = useRouter()
-   if (user) {
-      router.push('/')
-   }
+   // if (user) {
+   //    router.push('/')
+   // }
 
    const {
       register,

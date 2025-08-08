@@ -24,10 +24,10 @@ const Login = () => {
     formState: { errors },
   } = useForm();
 
-  const router = useRouter();
-  if (user) {
-    router.push("/");
-  }
+  // const router = useRouter();
+  // if (user) {
+  //   router.push("/");
+  // }
   const [error, setError] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [loading, setLoading] = useState(false);
