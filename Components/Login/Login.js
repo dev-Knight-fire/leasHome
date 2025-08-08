@@ -7,20 +7,14 @@ import { useForm } from "react-hook-form";
 import { FaFacebookF } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { toast } from "react-toastify";
-import { AuthContext } from "../../Contexts/AuthProvider/AuthProvider";
+import { useAuth } from "@/Contexts/AuthContext";
 import { CiFacebook } from "react-icons/ci";
 import Loader from "../Shared/Loader/Loader";
 
 const Login = () => {
   const {
-    providerLogin,
-    logOut,
-    forgotPassword,
-    signIn,
-    user,
-    updateUserProfile,
-    createUser,
-  } = useContext(AuthContext);
+    user
+  } = useAuth();
 
   const {
     register,

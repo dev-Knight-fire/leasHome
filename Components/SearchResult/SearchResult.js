@@ -40,7 +40,7 @@ function SearchResult({ searchData }) {
         <div className="lg:col-span-3 md:col-span-2 col-span-1 mx-auto">
           {searchData.length <= 0 && (
             <h1 className="mt-10 sm:mt-16 sm:text-2xl font-semibold">
-              Sorry, {user ? user?.displayName : "buddy"}, the data isn't
+              Sorry, {user.email ? user?.displayName : "buddy"}, the data isn't
               available based on your filter :({" "}
               <Link className="border-b-[2.5px] border-b-secondary" href="/">
                 Try another

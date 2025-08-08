@@ -3,12 +3,12 @@ import { Button, Card } from 'flowbite-react';
 import Link from 'next/link';
 import React, { useContext, useEffect, useState } from 'react';
 import { FaHome, FaUser } from 'react-icons/fa';
-import { AuthContext } from '../../Contexts/AuthProvider/AuthProvider';
+import { useAuth } from '@/Contexts/AuthContext';
 import PleaseLogin from '../PleaseLogin/PleaseLogin';
 import Loader from '../Shared/Loader/Loader';
 
 const UserProfile = () => {
-   const { user, logout, loading } = useContext(AuthContext)
+   const { user, loading } = useAuth();
    if (!user?.email) {
       return <PleaseLogin></PleaseLogin>
    }

@@ -113,7 +113,7 @@ const Navbar = () => {
             </span>
           </Link>
           <div className="flex md:order-2 gap-2">
-            {user ? (
+            {user.email ? (
               <div className="hidden md:flex">
                 <Link href="/userprofile">
                   <Avatar
@@ -270,7 +270,7 @@ const Navbar = () => {
           <Menu open={menuOpen}>
             <>
               {menuItems}
-              {user ? (
+              {user.email ? (
               <div className="hidden md:flex">
                 <Link href="/userprofile">
                   <Avatar
