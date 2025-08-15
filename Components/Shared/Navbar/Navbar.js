@@ -104,7 +104,7 @@ const Navbar = () => {
         <div className="container hidden lg:flex flex-wrap items-center justify-between mx-auto">
           <Link href="/" className="flex items-center">
             <img
-              src="/logo_leashome_sygnet.png"
+              src="/logo_leashome_white.png"
               className="h-9 mr-3 sm:h-12"
               alt="leasHome Logo"
             />
