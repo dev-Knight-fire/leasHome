@@ -5,9 +5,6 @@ const Welcome = () => {
   return (
     <div
       className="min-h-screen relative overflow-hidden"
-      style={{
-        background: "linear-gradient(135deg, #0D1741 60%, #5BA600 100%)",
-      }}
     >
       {/* Animated background shapes */}
       <div

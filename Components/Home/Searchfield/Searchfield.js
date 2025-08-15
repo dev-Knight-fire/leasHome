@@ -41,7 +41,7 @@ const Searchfield = () => {
   };
 
   return (
-    <div className="max-w-4xl -mt-40 mb-16 mx-4 md:mx-auto shadow-lg border rounded-2xl p-10 text-white bg-primary bg-opacity-50">
+    <div className="max-w-4xl -mt-10 mb-16 mx-4 md:mx-auto shadow-lg border rounded-2xl p-10 text-white bg-primary bg-opacity-50">
       <form
         className="flex flex-col justify-center items-center"
         onSubmit={handleSubmit(onSubmit)}

@@ -7,7 +7,7 @@ import { GiReceiveMoney } from "react-icons/gi";
 const About = () => {
   return (
     // About section on Home
-    <section className="bg-[#F5F8FA] md:py-16 px-4 my-12 mx-auto">
+    <section className="bg-[#F5F8FA] md:py-16 px-4 mx-auto">
       <div className="max-w-7xl w-full mx-auto text-primary">
         <div>
           <p className="text-gray-500 text-lg text-center font-normal pb-3">
