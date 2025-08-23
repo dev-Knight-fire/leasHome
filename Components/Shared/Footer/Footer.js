@@ -135,21 +135,6 @@ const Footer = () => {
                      <a href="#" className="hover:underline"><FiFacebook className='border p-1 rounded-full' /></a>
                   </li>
                   <li>
-                     <a href="#" className="hover:underline"><FiTwitter className='border p-1 rounded-full' /></a>
-                  </li>
-                  <li>
-                     <a href="#" className="hover:underline"><FiYoutube className='border p-1 rounded-full' /></a>
-                  </li>
-                  <li>
-                     <a href="#" className="hover:underline"><GrPinterest className='border p-1 rounded-full' /></a>
-                  </li>
-                  <li>
-                     <a href="#" className="hover:underline"><FiLinkedin className='border p-1 rounded-full' /></a>
-                  </li>
-                  <li>
-                     <a href="#" className="hover:underline"><GrSkype className='border p-1 rounded-full' /></a>
-                  </li>
-                  <li>
                      <a href="#" className="hover:underline"><FiInstagram className='border p-1 rounded-full' /></a>
                   </li>
                </ul>

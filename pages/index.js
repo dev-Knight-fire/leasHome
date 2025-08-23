@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Image from "next/image";
 import { Inter } from "@next/font/google";
-import Header from "@/Components/Home/Header/Header";
+// import Header from "@/Components/Home/Header/Header";
 import Searchfield from "@/Components/Home/Searchfield/Searchfield";
 import SellAndRent from "@/Components/Home/SellAndRent/SellAndRent";
 import About from "@/Components/Home/About/About";
@@ -27,7 +27,7 @@ export default function Home() {
         <Searchfield />
         <SellAndRent />
         <Branding />
-        <Header />
+        {/* <Header /> */}
       </main>
     </>
   );
