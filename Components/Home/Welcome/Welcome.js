@@ -76,34 +76,6 @@ const Welcome = () => {
                   Welcome to our property lease and rent website! We are thrilled to have you here and hope that you find our platform informative, user-friendly, and beneficial. Whether you are looking for your dream home, a new investment property, or a place to rent, we are confident that our website will provide you with an excellent selection of options to choose from. We look forward to helping you find your perfect property!
                 </p>
               </div>
-              <div className="text-center mt-3 group relative inline-block">
-                <Link href="/about" passHref legacyBehavior>
-                  <a
-                    className="font-bold px-6 py-2 rounded-full shadow-sm inline-flex items-center text-base transition-all duration-200 bg-white/90 text-[#0D1741] border-none hover:bg-secondary hover:text-white"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="22"
-                      height="22"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      className="mr-2"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    LEARN MORE
-                  </a>
-                </Link>
-                <span className="absolute left-1/2 -translate-x-1/2 -bottom-10 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-xs rounded px-3 py-1 pointer-events-none z-30 whitespace-nowrap">
-                  Learn more about LeasHome
-                </span>
-              </div>
             </div>
           </div>
         </div>
