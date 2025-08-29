@@ -1,20 +1,39 @@
-import { AuthContext } from "@/Contexts/AuthContext";
 import { Avatar } from "flowbite-react";
 import Link from "next/link";
-import { useContext, useState } from "react";
-import Menu from "./Menu";
-import MenuButton from "./MenuButton";
-import MenuItem from "./MenuItem";
+import { useState, useEffect } from "react";
 import { MessagesSquareIcon } from "lucide-react";
 import { useAuth } from "@/Contexts/AuthContext";
 import { auth } from "@/Firebase/auth";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/router";
+import { db } from '@/Firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const Navbar = () => {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
+
+  // Fetch unread messages count
+  useEffect(() => {
+    if (!user?.email) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const unreadMessagesQuery = query(
+      collection(db, 'messages'),
+      where('toEmail', '==', user.email),
+      where('read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(unreadMessagesQuery, (snapshot) => {
+      setUnreadCount(snapshot.docs.length);
+    });
+
+    return unsubscribe;
+  }, [user?.email]);
 
   const handleLogOut = async () => {
     try {
@@ -33,289 +52,212 @@ const Navbar = () => {
     setMenuOpen(false);
   };
 
-  const styles = {
-    container: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      zIndex: "99",
-      display: "flex",
-      alignItems: "center",
-      background: "#0D1741",
-      backgroundRepeat: "no-repeat",
-      width: "100%",
-      color: "white",
-      fontFamily: "Lobster",
-    },
-    logo: {
-      margin: "0 auto",
-    },
-    body: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      width: "100vw",
-      height: "100vh",
-      filter: menuOpen ? "blur(2px)" : null,
-      transition: "filter 0.5s ease",
-    },
-  };
-
-  const menu = [
-    {
-      item: "Home",
-      link: "/",
-    },
-    {
-      item: "Properties",
-      link: "/properties",
-    },
-    {
-      item: "Cooper Index",
-      link: "/cooper",
-    },
-    {
-      item: "Knowledge Base",
-      link: "/knowledge",
-    },
-    {
-      item: "FAQ",
-      link: "/faq",
-    },
-    {
-      item: "Terms of Use",
-      link: "/terms",
-    },
-    {
-      item: "Chat Room",
-      link: "/chat",
-    },
-  ];
-  const menuItems = menu.map((val, index) => {
-    return (
-      <MenuItem
-        key={index}
-        delay={`${index * 0.1}s`}
-        onClick={() => {
-          handleLinkClick();
-        }}
-      >
-        <Link href={val.link}>{val.item}</Link>
-      </MenuItem>
-    );
-  });
-
   return (
-    <div className="lg:bg-primary sticky top-0 z-40">
-      <nav className="max-w-[1440px] w-[95%] mx-auto text-white border-gray-200 px-2 sm:px-4 py-2.5 dark:bg-gray-900">
-        <div className="container hidden lg:flex flex-wrap items-center justify-between mx-auto">
-          <Link href="/" className="flex items-center">
+    <div className="bg-primary sticky top-0 z-40 shadow-lg">
+      <nav className="max-w-[1440px] w-[95%] mx-auto text-white px-4 py-3">
+        {/* Desktop Navigation */}
+        <div className="hidden lg:flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
             <img
               src="/logo_leashome_white.png"
-              className="h-9 mr-3 sm:h-12"
+              className="h-10 mr-3"
               alt="leasHome Logo"
             />
-            <span className="self-center text-4xl font-bold whitespace-nowrap dark:text-white">
+            <span className="text-3xl font-bold">
               Leas<span className="text-secondary">Home</span>
             </span>
           </Link>
-          <div className="flex md:order-2 gap-2">
-            {user.email ? (
-              <div className="hidden md:flex">
-                <Link href="/userprofile">
-                  <Avatar
-                    img={user?.avatar}
-                    rounded={true}
-                    className="border rounded-full"
-                  />
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogOut}
-                  className="ml-2 text-white bg-red-500 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm px-5 py-2.5 text-center mr-3 md:mr-0 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
+
+          {/* Desktop Menu Items */}
+          <div className="flex items-center space-x-8">
+            <Link href="/" className="text-white hover:text-secondary transition-colors font-medium">
+              Home
+            </Link>
+            <Link href="/properties" className="text-white hover:text-secondary transition-colors font-medium">
+              Properties
+            </Link>
+            <Link href="/cooper" className="text-white hover:text-secondary transition-colors font-medium">
+              Cooper Index
+            </Link>
+            <Link href="/knowledge" className="text-white hover:text-secondary transition-colors font-medium">
+              Knowledge Base
+            </Link>
+            <Link href="/faq" className="text-white hover:text-secondary transition-colors font-medium">
+              FAQ
+            </Link>
+            <Link href="/terms" className="text-white hover:text-secondary transition-colors font-medium">
+              Terms of Use
+            </Link>
+            
+            {/* Chat with unread count */}
+            <Link href="/chat" className="relative text-white hover:text-secondary transition-colors">
+              <MessagesSquareIcon className="w-6 h-6" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
+          </div>
+
+          {/* Desktop Auth Buttons */}
+          <div className="flex items-center space-x-4">
+            {user?.email ? (
               <>
-                <Link href="/login">
-                  <button
-                    type="button"
-                    className="text-white btn btn-xs btn-outline border hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm px-5 py-2.5 text-center mr-3 md:mr-0 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                  >
-                    Login
-                  </button>
-                </Link>
-                <Link href="/register">
-                  <button
-                    type="button"
-                    className="hidden lg:flex text-white btn border bg-secondary hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm px-5 py-2.5 text-center mr-3 md:mr-0 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                  >
-                    Sign Up
-                  </button>
-                </Link>
-              </>
-            )}
-            <button
-              data-collapse-toggle="navbar-cta"
-              type="button"
-              className="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
-              aria-controls="navbar-cta"
-              aria-expanded="false"
-            >
-              <span className="sr-only">Open main menu</span>
-              <svg
-                className="w-6 h-6"
-                aria-hidden="true"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                  clipRule="evenodd"
-                ></path>
-              </svg>
-            </button>
-          </div>
-          <div
-            className="items-center justify-between hidden w-full md:flex md:w-auto md:order-1"
-            id="navbar-cta"
-          >
-            <ul className="flex flex-col p-4 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:flex-row md:space-x-8 md:mt-0 md:text-sm md:font-medium md:border-0 md:bg-primary dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
-              <li>
-                <Link
-                  href="/"
-                  className="block py-2 pl-3 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                  aria-current="page"
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/properties"
-                  className="block py-2 pl-3 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                  Properties
-                </Link>
-              </li>
-              {/* <li>
-                        <Link href="/addProperty" className="block py-2 pl-3 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700">Add Property</Link>
-                     </li> */}
-
-              <li>
-                <Link
-                  href="/cooper"
-                  className="block py-2 pl-3 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                  Cooper Index
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/knowledge"
-                  className="block py-2 pl-3 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                  Knowledge Base
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/faq"
-                  className="block py-2 pl-3 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                  FAQ
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/terms"
-                  className="block py-2 pl-3 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                  Terms of Use
-                </Link>
-              </li>
-
-              <li>
-                <Link
-                  href="/chat"
-                  className="block py-2 pl-3 ml-5 pr-4 text-white rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-white dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                >
-                <span style={{ display: "flex", alignItems: "center" }}>
-                  <MessagesSquareIcon style={{ fontSize: "20px", marginRight: "6px" }} />
-                </span>
-                </Link>
-              </li>
-              
-            </ul>
-          </div>
-        </div>
-
-        <div className="lg:hidden">
-          <div style={styles.container}>
-            <MenuButton
-              open={menuOpen}
-              onClick={() => handleMenuClick()}
-              color="white"
-            />
-            <div style={styles.logo}>
-              <Link href="/" className="flex items-center">
-                <img
-                  src="logo_leashome_sygnet.png"
-                  className="mr-3 h-10 sm:h-12"
-                  alt="leasHome Logo"
-                />
-                <span className="self-center text-4xl font-bold whitespace-nowrap dark:text-white">
-                  Leas<span className="text-secondary">Home</span>
-                </span>
-              </Link>
-            </div>
-          </div>
-          <Menu open={menuOpen}>
-            <>
-              {menuItems}
-              {user.email ? (
-              <div className="hidden md:flex">
-                <Link href="/userprofile">
+                <Link href="/userprofile" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
                   <Avatar
                     img={user?.photoURL}
                     rounded={true}
-                    className="border rounded-full"
+                    className="border-2 border-white"
                   />
+                  <span className="text-sm font-medium hidden xl:block">
+                    {user?.displayName || user?.email}
+                  </span>
                 </Link>
                 <button
-                  type="button"
                   onClick={handleLogOut}
-                  className="ml-2 text-white bg-red-500 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm px-5 py-2.5 text-center mr-3 md:mr-0 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   Logout
                 </button>
-              </div>
+              </>
             ) : (
               <>
                 <Link href="/login">
-                  <button
-                    type="button"
-                    className="text-white btn btn-xs btn-outline border hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm px-5 py-2.5 text-center mr-3 md:mr-0 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                  >
+                  <button className="text-white border border-white hover:bg-white hover:text-primary px-4 py-2 rounded-lg font-medium transition-colors">
                     Login
                   </button>
                 </Link>
                 <Link href="/register">
-                  <button
-                    type="button"
-                    className="hidden lg:flex text-white btn border bg-secondary hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm px-5 py-2.5 text-center mr-3 md:mr-0 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                  >
+                  <button className="bg-secondary hover:bg-secondary/90 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                     Sign Up
                   </button>
                 </Link>
               </>
             )}
-            </>
-          </Menu>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="lg:hidden">
+          <div className="flex items-center justify-between">
+            {/* Mobile Logo */}
+            <Link href="/" className="flex items-center">
+              <img
+                src="/logo_leashome_white.png"
+                className="h-8 mr-2"
+                alt="leasHome Logo"
+              />
+              <span className="text-xl font-bold">
+                Leas<span className="text-secondary">Home</span>
+              </span>
+            </Link>
+
+            {/* Mobile Right Side */}
+            <div className="flex items-center space-x-3">
+              {/* Chat with unread count */}
+              <Link href="/chat" className="relative text-white hover:text-secondary transition-colors">
+                <MessagesSquareIcon className="w-6 h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold animate-pulse">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={handleMenuClick}
+                className="text-white hover:text-secondary transition-colors p-2"
+                aria-label="Toggle menu"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  {menuOpen ? (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  ) : (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  )}
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {menuOpen && (
+            <div className="mt-4 pb-4 border-t border-white/20">
+              <div className="flex flex-col space-y-3 pt-4">
+                <Link href="/" className="text-white hover:text-secondary transition-colors font-medium">
+                  Home
+                </Link>
+                <Link href="/properties" className="text-white hover:text-secondary transition-colors font-medium">
+                  Properties
+                </Link>
+                <Link href="/cooper" className="text-white hover:text-secondary transition-colors font-medium">
+                  Cooper Index
+                </Link>
+                <Link href="/knowledge" className="text-white hover:text-secondary transition-colors font-medium">
+                  Knowledge Base
+                </Link>
+                <Link href="/faq" className="text-white hover:text-secondary transition-colors font-medium">
+                  FAQ
+                </Link>
+                <Link href="/terms" className="text-white hover:text-secondary transition-colors font-medium">
+                  Terms of Use
+                </Link>
+                
+                {/* Mobile Auth */}
+                {user?.email ? (
+                  <div className="flex flex-col space-y-3 pt-4 border-t border-white/20">
+                    <Link href="/userprofile" className="flex items-center space-x-3 text-white hover:text-secondary transition-colors">
+                      <Avatar
+                        img={user?.avatar}
+                        rounded={true}
+                        className="border-2 border-white"
+                      />
+                      <span className="font-medium">
+                        {user?.displayName || user?.email}
+                      </span>
+                    </Link>
+                    <button
+                      onClick={handleLogOut}
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-left"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col space-y-3 pt-4 border-t border-white/20">
+                    <Link href="/login">
+                      <button className="w-full text-white border border-white hover:bg-white hover:text-primary px-4 py-2 rounded-lg font-medium transition-colors text-left">
+                        Login
+                      </button>
+                    </Link>
+                    <Link href="/register">
+                      <button className="w-full bg-secondary hover:bg-secondary/90 text-white px-4 py-2 rounded-lg font-medium transition-colors text-left">
+                        Sign Up
+                      </button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </nav>
     </div>
