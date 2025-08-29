@@ -393,7 +393,7 @@ const SinglePropertyPage = ({ propertyDetails }) => {
           <div className="bg-white rounded-xl shadow-lg p-6 sticky top-8">
             <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
               <User className="w-5 h-5 mr-2 text-primary" />
-              Property Owner
+              {user?.email === ownerData?.email ? "My Property" : "Property Owner"}
             </h3>
 
             {ownerLoading ? (
@@ -472,9 +472,9 @@ const SinglePropertyPage = ({ propertyDetails }) => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="pt-4 border-t border-gray-100 space-y-3">
+                {user?.email !== ownerData.email && <div className="pt-4 border-t border-gray-100 space-y-3">
                   {/* Chat Button */}
-                  {(user?.email !== ownerData.email) && <button
+                  <button
                     onClick={() => {
                       if (user?.email) {
                         setShowChatModal(true);
@@ -486,7 +486,7 @@ const SinglePropertyPage = ({ propertyDetails }) => {
                   >
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Chat Here
-                  </button>}
+                  </button>
 
                   {/* Call Button */}
                   {ownerData.phone && (
@@ -518,8 +518,8 @@ const SinglePropertyPage = ({ propertyDetails }) => {
                     </button>
                   )}
                 </div>
+                }
 
-                {/* Additional Info */}
                 <div className="pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500 text-center">
                     Contact the owner directly for more information about this property
