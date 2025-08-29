@@ -518,7 +518,7 @@ const UserProfile = () => {
                                              View
                                           </Link>
                                           <Link
-                                             href={`/edit-property/${property.id}`}
+                                             href={`/addproperty/${property.id}`}
                                              className="flex items-center px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-sm hover:bg-yellow-200 transition-colors"
                                           >
                                              <Edit className="w-3 h-3 mr-1" />

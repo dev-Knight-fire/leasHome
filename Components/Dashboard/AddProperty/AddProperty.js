@@ -1,22 +1,26 @@
 import { useAuth } from "@/Contexts/AuthContext";
 import { useRouter } from "next/router";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { db } from "@/Firebase/firestore";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
-function AddProperty() {
+function AddProperty({ propertyId }) {
   const router = useRouter();
   const { user } = useAuth();
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fetchingProperty, setFetchingProperty] = useState(false);
   const [propertyType, setPropertyType] = useState("plot");
   const [leaseType, setLeaseType] = useState("");
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [photoFiles, setPhotoFiles] = useState([]);
+  const [existingPhotos, setExistingPhotos] = useState([]);
   const fileInputRef = useRef(null);
+  
+  const isEditMode = !!propertyId;
 
   const {
     register,
@@ -29,6 +33,78 @@ function AddProperty() {
   } = useForm();
 
   const watchedLeaseType = watch("leaseType", leaseType);
+
+  // Fetch property data if in edit mode
+  useEffect(() => {
+    const fetchProperty = async () => {
+      if (!propertyId || !user?.email) {
+        // If not in edit mode, set fetchingProperty to false
+        setFetchingProperty(false);
+        return;
+      }
+      
+      try {
+        setFetchingProperty(true);
+        const propertyDoc = await getDoc(doc(db, "properties", propertyId));
+        
+        if (!propertyDoc.exists()) {
+          toast.error("Property not found");
+          router.push("/properties");
+          return;
+        }
+        
+        const propertyData = propertyDoc.data();
+        
+        // Check if user owns this property
+        if (propertyData.createdBy?.email !== user.email) {
+          toast.error("You can only edit your own properties");
+          router.push("/properties");
+          return;
+        }
+        
+        // Set form values
+        setPropertyType(propertyData.type);
+        setLeaseType(propertyData.leaseType);
+        setExistingPhotos(propertyData.photos || []);
+        
+        // Set form fields
+        setValue("type", propertyData.type);
+        setValue("leaseType", propertyData.leaseType);
+        setValue("location", propertyData.location);
+        setValue("title", propertyData.title);
+        setValue("description", propertyData.description);
+        setValue("price", propertyData.price);
+        setValue("water", propertyData.utilities?.water ? "yes" : "no");
+        setValue("electricity", propertyData.utilities?.electricity ? "yes" : "no");
+        setValue("sewer", propertyData.utilities?.sewer ? "yes" : "no");
+        setValue("gas", propertyData.utilities?.gas ? "yes" : "no");
+        setValue("accessibility", propertyData.accessibility);
+        setValue("publicLighting", propertyData.publicLighting ? "yes" : "no");
+        setValue("sidewalk", propertyData.sidewalk ? "yes" : "no");
+        
+        if (propertyData.leaseType === "Rental with Option to buy") {
+          setValue("fullValueOfProperty", propertyData.fullValueOfProperty);
+        }
+        
+        if (propertyData.type === "plot") {
+          setValue("developmentPlan", propertyData.developmentPlan);
+        } else if (propertyData.type === "building") {
+          setValue("buildingType", propertyData.buildingType);
+        }
+        
+        setAgree(true); // Auto-check terms for edit mode
+        
+      } catch (error) {
+        console.error("Error fetching property:", error);
+        toast.error("Failed to load property data");
+        router.push("/properties");
+      } finally {
+        setFetchingProperty(false);
+      }
+    };
+    
+    fetchProperty();
+  }, [propertyId, user?.email, setValue, router]);
 
   // Handle file input change and preview
   const handlePhotoChange = (e) => {
@@ -54,6 +130,12 @@ function AddProperty() {
     }
   };
 
+  // Remove an existing photo
+  const handleRemoveExistingPhoto = (idx) => {
+    const newExistingPhotos = existingPhotos.filter((_, i) => i !== idx);
+    setExistingPhotos(newExistingPhotos);
+  };
+
   // Upload photos to Firebase Storage and return their download URLs
   const uploadPhotosToStorage = async (files) => {
     if (!files || files.length === 0) return [];
@@ -70,17 +152,26 @@ function AddProperty() {
   };
 
   const handleAddProperty = async (data) => {
+    console.log('Form submitted with data:', data);
+    console.log('isEditMode:', isEditMode);
+    console.log('photoFiles:', photoFiles);
+    console.log('existingPhotos:', existingPhotos);
+    console.log('Form errors:', errors);
+    
     setLoading(true);
     try {
-      // Validate that at least one photo is selected
-      if (!photoFiles || photoFiles.length === 0) {
+      // Validate that at least one photo is selected (either new files or existing photos)
+      if ((!photoFiles || photoFiles.length === 0) && (!existingPhotos || existingPhotos.length === 0)) {
         toast.error("At least one photo is required.");
         setLoading(false);
         return;
       }
 
-      // Upload photos to Firebase Storage
-      const photoUrls = await uploadPhotosToStorage(photoFiles);
+      // Upload new photos to Firebase Storage
+      const newPhotoUrls = await uploadPhotosToStorage(photoFiles);
+      
+      // Combine existing and new photos
+      const allPhotoUrls = [...existingPhotos, ...newPhotoUrls];
 
       let developmentPlan = data.developmentPlan;
       if (data.type === "plot") {
@@ -105,13 +196,8 @@ function AddProperty() {
         accessibility: data.accessibility,
         publicLighting: data.publicLighting === "yes",
         sidewalk: data.sidewalk === "yes",
-        photos: photoUrls,
-        createdBy: {
-          email: user?.email || "",
-          name: user?.displayName || "",
-          photoURL: user?.photoURL || "",
-        },
-        createdAt: serverTimestamp(),
+        photos: allPhotoUrls,
+        updatedAt: serverTimestamp(),
       };
 
       if (data.leaseType === "Rental with Option to buy") {
@@ -124,23 +210,41 @@ function AddProperty() {
         propertyData.buildingType = data.buildingType;
       }
 
-      await addDoc(collection(db, "properties"), propertyData);
-
-      toast.success("Property registered successfully!", {
-        position: "top-center",
-      });
+      if (isEditMode) {
+        // Update existing property
+        await updateDoc(doc(db, "properties", propertyId), propertyData);
+        toast.success("Property updated successfully!", {
+          position: "top-center",
+        });
+        router.push(`/singleproperty/${propertyId}`);
+      } else {
+        // Add new property
+        propertyData.createdBy = {
+          email: user?.email || "",
+          name: user?.displayName || "",
+          photoURL: user?.photoURL || "",
+        };
+        propertyData.createdAt = serverTimestamp();
+        
+        const docRef = await addDoc(collection(db, "properties"), propertyData);
+        toast.success("Property registered successfully!", {
+          position: "top-center",
+        });
+        router.push(`/singleproperty/${docRef.id}`);
+      }
+      
       reset();
       setPhotoFiles([]);
       setPhotoPreviews([]);
+      setExistingPhotos([]);
       setLoading(false);
       // Reset file input value so "No file chosen" is shown again
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      router.push("/");
     } catch (err) {
       setLoading(false);
-      toast.error("Failed to register property.");
+      toast.error(isEditMode ? "Failed to update property." : "Failed to register property.");
     }
   };
 
@@ -149,7 +253,7 @@ function AddProperty() {
       <div className="max-w-2xl w-full mx-auto my-10">
         <div className="bg-gradient-to-r from-green-700 to-gray-900 rounded-t-2xl shadow-lg">
           <h2 className="uppercase p-8 text-center text-white text-3xl font-extrabold tracking-wider drop-shadow-lg">
-            Register Your Property
+            {isEditMode ? "Edit Your Property" : "Register Your Property"}
           </h2>
         </div>
         <form
@@ -277,10 +381,9 @@ function AddProperty() {
                 accept="image/*"
                 multiple
                 ref={fileInputRef}
-                // Remove {...register("photos", { required: true })} because react-hook-form does not handle files well
                 onChange={handlePhotoChange}
                 className="file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-900 hover:file:bg-green-100 transition"
-                required
+                // Remove required attribute since we handle validation manually
                 // Show selected file names in a custom way below
               />
               {/* Show selected file names instead of default "No file chosen" */}
@@ -291,31 +394,63 @@ function AddProperty() {
                   ))}
                 </div>
               )}
-              {(!photoFiles || photoFiles.length === 0) && (
+              {(!photoFiles || photoFiles.length === 0) && (!existingPhotos || existingPhotos.length === 0) && (
                 <span className="text-red-600 text-xs mt-1">At least one photo is required</span>
               )}
             </div>
+            {/* Existing Photos (Edit Mode) */}
+            {existingPhotos.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Existing Photos:</h4>
+                <div className="flex flex-wrap gap-4">
+                  {existingPhotos.map((src, idx) => (
+                    <div key={`existing-${idx}`} className="relative group">
+                      <img
+                        src={src}
+                        alt={`Existing ${idx + 1}`}
+                        className="w-24 h-24 object-cover rounded-xl border-2 border-blue-200 shadow-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExistingPhoto(idx)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition"
+                        title="Remove"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New Photo Previews */}
             {photoPreviews.length > 0 && (
-              <div className="flex flex-wrap gap-4 mt-4">
-                {photoPreviews.map((src, idx) => (
-                  <div key={idx} className="relative group">
-                    <img
-                      src={src}
-                      alt={`Preview ${idx + 1}`}
-                      className="w-24 h-24 object-cover rounded-xl border-2 border-green-200 shadow-md"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePhoto(idx)}
-                      className="absolute top-1 right-1 bg-green-600 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition"
-                      title="Remove"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">New Photos:</h4>
+                <div className="flex flex-wrap gap-4">
+                  {photoPreviews.map((src, idx) => (
+                    <div key={`new-${idx}`} className="relative group">
+                      <img
+                        src={src}
+                        alt={`Preview ${idx + 1}`}
+                        className="w-24 h-24 object-cover rounded-xl border-2 border-green-200 shadow-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(idx)}
+                        className="absolute top-1 right-1 bg-green-600 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition"
+                        title="Remove"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -497,8 +632,8 @@ function AddProperty() {
           {/* Submit Button */}
           <button
             type="submit"
-            className={`w-full py-3 px-4 rounded-xl bg-gradient-to-r from-green-700 to-gray-900 text-white font-bold text-lg shadow-md transition-all duration-200 ${(!agree || loading) ? "opacity-60 cursor-not-allowed" : "hover:from-green-800 hover:to-black scale-105"}`}
-            disabled={!agree || loading}
+            className={`w-full py-3 px-4 rounded-xl bg-gradient-to-r from-green-700 to-gray-900 text-white font-bold text-lg shadow-md transition-all duration-200 ${(!agree || loading || fetchingProperty) ? "opacity-60 cursor-not-allowed" : "hover:from-green-800 hover:to-black scale-105"}`}
+            disabled={!agree || loading || fetchingProperty}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -506,9 +641,19 @@ function AddProperty() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                 </svg>
-                Saving...
+                {isEditMode ? "Updating..." : "Saving..."}
               </span>
-            ) : "Submit"}
+            ) : fetchingProperty ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                Loading...
+              </span>
+            ) : (
+              isEditMode ? "Update Property" : "Submit"
+            )}
           </button>
         </form>
       </div>
