@@ -80,7 +80,7 @@ const Searchfield = () => {
                 Select Purpose
               </option>
               <option value="lease">Lease</option>
-              <option value="rental">Rental</option>
+              <option value="rental">Rental with Option to Buy</option>
               <option value="long_term">Long-Term Rental</option>
             </select>
           </div>
@@ -101,60 +101,31 @@ const Searchfield = () => {
               <option value="">
                 Select Property Type
               </option>
-              <option value="apartment">Apartment</option>
-              <option value="house">House</option>
-              <option value="condo">Condo</option>
-              <option value="townhouse">Townhouse</option>
-              <option value="land">Land</option>
-              <option value="commercial">Commercial</option>
+              <option value="plot">Plot</option>
+              <option value="building">Building</option>
             </select>
           </div>
           <div className="relative w-full mb-6 group flex flex-col">
             <label
-              htmlFor="category"
+              htmlFor="accessibility"
               className="font-semibold text-lg pl-1"
             >
-              Option to Buy
+              Accessibility
             </label>
             <select
-              id="category"
+              id="accessibility"
               className="focus:outline-none rounded-md py-2.5 text-primary"
-              {...register("category")}
+              {...register("accessibility")}
               defaultValue={""}
             >
-              {defineOption === "commercial" ? (
-                <>
-                  <option value="">
-                    Select Option
-                  </option>
-                  <option value="office">Office</option>
-                  <option value="floor">Floor</option>
-                  <option value="duplex">Duplex</option>
-                  <option value="building">Building</option>
-                  <option value="warehouse">Warehouse</option>
-                  <option value="shop">Shop</option>
-                  <option value="appartment">Appartment</option>
-                  <option value="plaza">Plaza</option>
-                  <option value="plot">Plot</option>
-                  <option value="factory">Factory</option>
-                </>
-              ) : (
-                <>
-                  <option value="">
-                    Select Division
-                  </option>
-                  <option value="appartment">Appartment</option>
-                  <option value="penthouse">Penthouse</option>
-                  <option value="plaza">Plaza</option>
-                  <option value="plot">Plot</option>
-                  <option value="room">Room</option>
-                  <option value="duplex">Duplex</option>
-                  <option value="building">Building</option>
-                </>
-              )}
+              <option value="">Select Accessibility</option>
+              <option value="gravel road">Gravel Road</option>
+              <option value="paved road">Paved Road</option>
+              <option value="asphalt">Asphalt</option>
+              <option value="concrete road">Concrete Road</option>
             </select>
           </div>
-          
+
         </div>
         <button
           type="submit"

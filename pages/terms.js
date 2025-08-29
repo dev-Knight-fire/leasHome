@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 const terms = [
   {
@@ -127,12 +128,12 @@ const TermsOfUse = () => {
           ))}
         </div>
         <div className="mt-10 text-center">
-          <a
+          <Link
             href="/"
             className="inline-block px-8 py-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-lg hover:scale-105 hover:shadow-xl transition-all duration-200"
           >
             Back to Home
-          </a>
+          </Link>
         </div>
       </div>
       <div className="w-full max-w-3xl">

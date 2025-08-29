@@ -6,44 +6,101 @@ import { useEffect, useState, useMemo } from 'react';
 import { HiOutlineSquares2X2 } from "react-icons/hi2";
 import { MdOutlineApartment, MdOutlineBathroom, MdOutlineBedroomChild } from 'react-icons/md';
 import { TfiLocationPin } from 'react-icons/tfi';
+import { db } from '@/Firebase/firestore';
+import { collection, getDocs, query, where, orderBy, getDoc, doc } from 'firebase/firestore';
+import { Loader } from 'lucide-react';
 
 const properties = () => {
     const router = useRouter();
     const divisionId = router.query.divisionId;
-    const [divisions, setDivision] = useState([]);
+    const [properties, setProperties] = useState([]);
+    const [users, setUsers] = useState({}); // Store user data by email
     const [itemOffset, setItemOffset] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
+    const [loading, setLoading] = useState(true);
+    
     // Search state
     const [searchLocation, setSearchLocation] = useState('');
     const [searchType, setSearchType] = useState('');
+    const [searchLeaseType, setSearchLeaseType] = useState('');
 
     // For dropdown options
     const [locationOptions, setLocationOptions] = useState([]);
     const [typeOptions, setTypeOptions] = useState([]);
+    const [leaseTypeOptions, setLeaseTypeOptions] = useState([]);
+
+    // Fetch user data by email
+    const fetchUserData = async (email) => {
+        try {
+            const userDoc = await getDoc(doc(db, 'users', email));
+            if (userDoc.exists()) {
+                return userDoc.data();
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            return null;
+        }
+    };
+
+    // Fetch properties from Firebase
+    const fetchProperties = async () => {
+        try {
+            setLoading(true);
+            const propertiesRef = collection(db, 'properties');
+            const q = query(propertiesRef, orderBy('createdAt', 'desc'));
+            const querySnapshot = await getDocs(q);
+            
+            const propertiesData = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            setProperties(propertiesData);
+
+            // Extract unique values for dropdowns
+            const locations = Array.from(new Set(propertiesData.map(item => item.location).filter(Boolean)));
+            setLocationOptions(locations);
+
+            const types = Array.from(new Set(propertiesData.map(item => item.type).filter(Boolean)));
+            setTypeOptions(types);
+
+            const leaseTypes = Array.from(new Set(propertiesData.map(item => item.leaseType).filter(Boolean)));
+            setLeaseTypeOptions(leaseTypes);
+
+            // Fetch user data for all properties
+            const userEmails = [...new Set(propertiesData.map(item => item.createdBy?.email).filter(Boolean))];
+            const usersData = {};
+            
+            for (const email of userEmails) {
+                const userData = await fetchUserData(email);
+                if (userData) {
+                    usersData[email] = userData;
+                }
+            }
+            
+            setUsers(usersData);
+
+        } catch (error) {
+            console.error('Error fetching properties:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        fetch(`https://server-fare-bd.vercel.app/property`)
-            .then((res) => res.json())
-            .then((data) => {
-                setDivision(data);
-
-                // Extract unique locations and property types for dropdowns
-                const locations = Array.from(new Set(data.map(item => item.location).filter(Boolean)));
-                setLocationOptions(locations);
-
-                const types = Array.from(new Set(data.map(item => item.property_type).filter(Boolean)));
-                setTypeOptions(types);
-            });
+        fetchProperties();
     }, []);
 
     // Filtered items based on search
     const filteredItems = useMemo(() => {
-        return divisions.filter(item => {
+        return properties.filter(item => {
             const matchesLocation = searchLocation ? item.location === searchLocation : true;
-            const matchesType = searchType ? item.property_type === searchType : true;
-            return matchesLocation && matchesType;
+            const matchesType = searchType ? item.type === searchType : true;
+            const matchesLeaseType = searchLeaseType ? item.leaseType === searchLeaseType : true;
+            return matchesLocation && matchesType && matchesLeaseType;
         });
-    }, [divisions, searchLocation, searchType]);
+    }, [properties, searchLocation, searchType, searchLeaseType]);
 
     const itemsPerPage = 6;
     const endOffset = itemOffset + itemsPerPage;
@@ -59,22 +116,43 @@ const properties = () => {
     // Reset pagination when search changes
     useEffect(() => {
         setItemOffset(0);
-    }, [searchLocation, searchType]);
+        setCurrentPage(0);
+    }, [searchLocation, searchType, searchLeaseType]);
 
-    // Handle search form submit (optional, for button)
+    // Handle search form submit
     const handleSearch = (e) => {
         e.preventDefault();
         setItemOffset(0);
+        setCurrentPage(0);
     };
 
+    // Clear all filters
+    const handleClearFilters = () => {
+        setSearchLocation('');
+        setSearchType('');
+        setSearchLeaseType('');
+        setItemOffset(0);
+        setCurrentPage(0);
+    };
+
+    if (loading) {
+        return (
+            <div className='max-w-[1440px] w-[95%] mx-auto text-center'>
+                <div className="flex justify-center items-center min-h-screen">
+                    <Loader className='w-10 h-10 animate-spin' />
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className='max-w-[1440px] w-[95%] mx-auto text-center'>
-            <h1 className='my-12 text-3xl font-bold'>Properties of {divisionId} Division</h1>
+        <div className='max-w-[1440px] w-[95%] mx-auto text-center my-12'>
+            <h1 className='my-12 text-3xl font-bold'>Properties</h1>
 
             {/* Search Engine */}
             <form className="mb-8" onSubmit={handleSearch}>
                 <div className="flex flex-col md:flex-row md:items-end md:justify-center gap-4">
-                    <div className="w-full md:w-1/3">
+                    <div className="w-full md:w-1/4">
                         <label htmlFor="searchLocation" className="block text-left mb-1 font-medium text-gray-700">Location</label>
                         <select
                             id="searchLocation"
@@ -89,7 +167,7 @@ const properties = () => {
                             ))}
                         </select>
                     </div>
-                    <div className="w-full md:w-1/3">
+                    <div className="w-full md:w-1/4">
                         <label htmlFor="searchType" className="block text-left mb-1 font-medium text-gray-700">Property Type</label>
                         <select
                             id="searchType"
@@ -104,117 +182,207 @@ const properties = () => {
                             ))}
                         </select>
                     </div>
-                    <div className="w-full md:w-auto">
+                    <div className="w-full md:w-1/4">
+                        <label htmlFor="searchLeaseType" className="block text-left mb-1 font-medium text-gray-700">Lease Type</label>
+                        <select
+                            id="searchLeaseType"
+                            value={searchLeaseType}
+                            onChange={e => setSearchLeaseType(e.target.value)}
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            aria-label="Select lease type"
+                        >
+                            <option value="">All Lease Types</option>
+                            {leaseTypeOptions.map(leaseType => (
+                                <option key={leaseType} value={leaseType}>{leaseType}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="w-full md:w-auto flex gap-2">
                         <button
                             type="submit"
-                            className="w-full px-6 py-2 bg-primary text-white font-semibold rounded-md shadow hover:bg-primary/90 transition"
+                            className="px-6 py-2 bg-primary text-white font-semibold rounded-md shadow hover:bg-primary/90 transition"
                         >
                             Search
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            className="px-6 py-2 bg-red-500 text-white font-semibold rounded-md shadow hover:bg-gray-600 transition"
+                        >
+                            Clear
                         </button>
                     </div>
                 </div>
             </form>
 
-            <div className='gap-8 grid sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-4'>
-                <div className='lg:col-span-3 md:col-span-2 col-span-1 mx-auto mb-8'>
-                    <div className='min-h-screen'>
-                        {
-                            currentItems.length === 0 ? (
-                                <div className="text-center text-gray-500 mt-5">No properties found.</div>
-                            ) : (
-                                currentItems.map(division =>
-                                    <Link
-                                        key={division?._id}
-                                        href={`/singleproperty/${division?._id}`}
-                                        className="flex flex-col items-center bg-white border border-gray-200 rounded-lg shadow md:flex-row hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 h-64 my-4 transition"
-                                    >
-                                        <img className="h-full w-96 object-cover rounded-l-lg" src={division?.property_picture} alt="img" />
-                                        <div className="flex flex-col justify-start ml-8 p-4 leading-normal my-4 w-full">
-                                            <div className='grid gap-1.5'>
-                                                <p ><span className='flex font-bold text-xl'>$ {division?.price}</span></p>
-                                                <p className='font-bold text-start'>{division?.property_type}</p>
-                                                <p><span className='flex text-xs items-center'><TfiLocationPin className='mt-1 mr-1' /> {division?.location} </span></p>
-                                            </div>
-                                            <h2 className='text-sm mt-4 text-start'>{division?.property_heading}</h2>
-                                            <div className='flex justify-start gap-8 mt-4 font-bold text-secondary'>
-                                                <div className='flex gap-1 items-center'><MdOutlineApartment className='mt-1' /><p>{division?.flat_feature?.[0]?.floor}</p></div>
-                                                <div className='flex gap-1 items-center'><MdOutlineBedroomChild className='mt-1' /><p>{division?.flat_feature?.[0]?.room}</p></div>
-                                                <div className='flex gap-1 items-center'><MdOutlineBathroom className='mt-1' /><p>{division?.flat_feature?.[0]?.bathroom}</p></div>
-                                                <div className='flex gap-1 items-center'><HiOutlineSquares2X2 className='mt-1' /><p>{division?.size}</p></div>
-                                            </div>
-                                            <div className='flex justify-start gap-5 mt-4'>
-                                                <img className='h-10 w-10 rounded-full' src={division?.user_image} alt="" />
-                                                <img className='h-12' src="https://lh3.googleusercontent.com/pw/AMWts8D7jqd4R67XBB7IKs6Hi8jRKjgJ-2XmxdiU66iGxHdTNdqGNjtsTaPNYu-xcXf7ZOzAvzwtf_zJZzKfA0H7MFaNGFwcuEBsK1nQBXSC6Uxk_lz5eCCKOnf8MsAA0URa3-TL3W-88iNp0tN5eEK94LRq=w538-h274-no?authuser=0" alt="" />
-                                            </div>
-                                        </div>
-                                    </Link>
-                                )
-                            )
-                        }
-                    </div>
-                    {/* Cool UI Pagination using react-bootstrap, horizontal layout */}
-                    <div className="mt-6 d-flex justify-content-center">
-                        <nav aria-label="Property pagination">
-                            <div className="d-flex flex-row align-items-center gap-2">
-                                <button
-                                    className="btn btn-light d-flex align-items-center justify-content-center rounded-circle shadow"
-                                    style={{ width: 44, height: 44 }}
-                                    onClick={() => handlePageClick({ selected: currentPage - 1 })}
-                                    disabled={currentPage === 0}
-                                    aria-label="Previous"
-                                >
-                                    <span aria-hidden="true">&laquo;</span>
-                                </button>
-                                {Array.from({ length: pageCount }, (_, idx) => (
-                                    <button
-                                        key={idx}
-                                        className={`btn d-flex align-items-center justify-content-center rounded-circle shadow ${currentPage === idx ? "btn-primary text-green-500 border-primary" : "btn-light"}`}
-                                        style={{ width: 44, height: 44, fontWeight: 600, fontSize: 18 }}
-                                        onClick={() => handlePageClick({ selected: idx })}
-                                    >
-                                        {idx + 1}
-                                    </button>
-                                ))}
-                                <button
-                                    className="btn btn-light d-flex align-items-center justify-content-center rounded-circle shadow"
-                                    style={{ width: 44, height: 44 }}
-                                    onClick={() => handlePageClick({ selected: currentPage + 1 })}
-                                    disabled={currentPage === pageCount - 1}
-                                    aria-label="Next"
-                                >
-                                    <span aria-hidden="true">&raquo;</span>
-                                </button>
-                            </div>
-                        </nav>
-                    </div>
-                </div>
-                <div className=''>
-                    <div className="h-64 sm:h-64 xl:h-80 2xl:h-96">
-                        <Carousel slide={false}>
-                            <img
-                                src="https://flowbite.com/docs/images/carousel/carousel-1.svg"
-                                alt="..."
-                            />
-                            <img
-                                src="https://flowbite.com/docs/images/carousel/carousel-2.svg"
-                                alt="..."
-                            />
-                            <img
-                                src="https://flowbite.com/docs/images/carousel/carousel-3.svg"
-                                alt="..."
-                            />
-                            <img
-                                src="https://flowbite.com/docs/images/carousel/carousel-4.svg"
-                                alt="..."
-                            />
-                            <img
-                                src="https://flowbite.com/docs/images/carousel/carousel-5.svg"
-                                alt="..."
-                            />
-                        </Carousel>
-                    </div>
-                </div>
+            {/* Results count */}
+            <div className="text-left mb-4">
+                <p className="text-gray-600">
+                    Showing {currentItems.length} of {filteredItems.length} properties
+                    {(searchLocation || searchType || searchLeaseType) && (
+                        <span className="ml-2 text-sm text-gray-500">
+                            (filtered)
+                        </span>
+                    )}
+                </p>
             </div>
+
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                {
+                    currentItems.length === 0 ? (
+                        <div className="col-span-full text-center py-12">
+                            <div className="text-gray-500 text-lg">
+                                {filteredItems.length === 0 ? "No properties found." : "No properties match your current filters."}
+                            </div>
+                        </div>
+                    ) : (
+                        currentItems.map(property => (
+                            <Link
+                                key={property?.id}
+                                href={`/singleproperty/${property?.id}`}
+                                className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100 overflow-hidden"
+                            >
+                                {/* Property Image */}
+                                <div className="relative h-48 overflow-hidden">
+                                    <img 
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                                        src={property?.photos[0] || "https://via.placeholder.com/400x300?text=Property+Image"} 
+                                        alt={property?.title} 
+                                    />
+                                    {/* Price Badge */}
+                                    <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                                        ${property?.price?.toLocaleString() || 'N/A'}
+                                    </div>
+                                    {/* Type Badge */}
+                                    <div className="absolute top-4 right-4 bg-secondary text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                                        {property?.type || 'N/A'}
+                                    </div>
+                                </div>
+
+                                {/* Property Details */}
+                                <div className="p-6">
+                                    {/* Title */}
+                                    <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-1 group-hover:text-primary transition-colors">
+                                        {property?.title || 'Property Title'}
+                                    </h3>
+
+                                    {/* Location */}
+                                    <div className="flex items-center text-gray-600 mb-3">
+                                        <TfiLocationPin className="w-4 h-4 mr-2 text-primary" />
+                                        <span className="text-sm">{property?.location || 'Location not specified'}</span>
+                                    </div>
+
+                                    {/* Lease Type */}
+                                    <div className="mb-3">
+                                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                                            {property?.leaseType || 'N/A'}
+                                        </span>
+                                    </div>
+
+                                    {/* Description */}
+                                    <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
+                                        {property?.description 
+                                            ? (property.description.length > 50 
+                                                ? property.description.substring(0, 50) + '...' 
+                                                : property.description)
+                                            : 'No description available'
+                                        }
+                                    </p>
+
+                                    {/* Owner and Date */}
+                                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                                        <div className="flex items-center">
+                                            {(() => {
+                                                const userEmail = property?.createdBy?.email;
+                                                const userData = users[userEmail];
+                                                const userPhotoURL = userData?.photoURL || userData?.img;
+                                                const userName = userData?.name || property?.createdBy?.name || 'Owner';
+                                                
+                                                return (
+                                                    <>
+                                                        {userPhotoURL ? (
+                                                            <img
+                                                                src={userPhotoURL}
+                                                                alt={userName}
+                                                                className="w-8 h-8 rounded-full object-cover mr-3 border border-gray-200"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
+                                                                {userName.charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-800">
+                                                                {userName}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                {property?.createdAt?.toDate?.()?.toLocaleDateString('en-US', {
+                                                                    year: 'numeric',
+                                                                    month: 'short',
+                                                                    day: 'numeric'
+                                                                }) || 'Date not available'}
+                                                            </p>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                        
+                                        {/* View Details Arrow */}
+                                        <div className="text-primary group-hover:translate-x-1 transition-transform duration-300">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
+                        ))
+                    )
+                }
+            </div>
+            {/* Pagination */}
+            {pageCount > 1 && (
+                <div className="mt-8 flex justify-center">
+                    <nav aria-label="Property pagination" className="flex items-center space-x-2">
+                        <button
+                            className="flex items-center justify-center w-11 h-11 rounded-full shadow-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            onClick={() => handlePageClick({ selected: currentPage - 1 })}
+                            disabled={currentPage === 0}
+                            aria-label="Previous"
+                        >
+                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        
+                        {Array.from({ length: pageCount }, (_, idx) => (
+                            <button
+                                key={idx}
+                                className={`flex items-center justify-center w-11 h-11 rounded-full shadow-md font-semibold text-lg transition-all duration-200 ${
+                                    currentPage === idx 
+                                        ? "bg-primary text-white shadow-lg" 
+                                        : "bg-white text-gray-700 hover:bg-gray-50"
+                                }`}
+                                onClick={() => handlePageClick({ selected: idx })}
+                            >
+                                {idx + 1}
+                            </button>
+                        ))}
+                        
+                        <button
+                            className="flex items-center justify-center w-11 h-11 rounded-full shadow-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            onClick={() => handlePageClick({ selected: currentPage + 1 })}
+                            disabled={currentPage === pageCount - 1}
+                            aria-label="Next"
+                        >
+                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </nav>
+                </div>
+            )}
         </div>
     );
 };

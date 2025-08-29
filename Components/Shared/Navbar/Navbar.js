@@ -7,15 +7,22 @@ import MenuButton from "./MenuButton";
 import MenuItem from "./MenuItem";
 import { MessagesSquareIcon } from "lucide-react";
 import { useAuth } from "@/Contexts/AuthContext";
+import { auth } from "@/Firebase/auth";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/router";
 
 const Navbar = () => {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
 
-  const handleLogOut = () => {
-    logout()
-      .then(() => {})
-      .catch((error) => console.log(error));
+  const handleLogOut = async () => {
+    try {
+      await signOut(auth);
+      router.push('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const handleMenuClick = () => {
@@ -117,7 +124,7 @@ const Navbar = () => {
               <div className="hidden md:flex">
                 <Link href="/userprofile">
                   <Avatar
-                    img={user?.photoURL}
+                    img={user?.avatar}
                     rounded={true}
                     className="border rounded-full"
                   />

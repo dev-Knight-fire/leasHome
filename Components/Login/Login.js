@@ -1,6 +1,5 @@
 "use client";
 
-import { GoogleAuthProvider } from "firebase/auth";
 import { Button, Label, TextInput } from "flowbite-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -8,15 +7,23 @@ import React, { useContext, useState } from "react";
 import { useForm } from "react-hook-form";
 import { FaFacebookF } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
-import { toast } from "react-toastify";
 import { useAuth } from "@/Contexts/AuthContext";
 import { CiFacebook } from "react-icons/ci";
 import Loader from "../Shared/Loader/Loader";
+import { auth, googleProvider } from "@/Firebase/auth";
+import { db } from "@/Firebase/firestore";
+import { 
+   signInWithEmailAndPassword, 
+   signInWithPopup, 
+   updateProfile,
+   sendPasswordResetEmail 
+} from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { v4 as uuidv4 } from 'uuid';
 
 const Login = () => {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  const router = useRouter();
 
   const {
     register,
@@ -24,114 +31,114 @@ const Login = () => {
     formState: { errors },
   } = useForm();
 
-  // const router = useRouter();
-  // if (user) {
-  //   router.push("/");
-  // }
   const [error, setError] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [createUserEmail, setCreateUserEmail] = useState("");
 
-  const googleProvider = new GoogleAuthProvider();
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
 
-  const handleGoogleSignIn = () => {
-    providerLogin(googleProvider)
-      .then((result) => {
-        const user = result.user;
-        // console.log(user);
+      const currentUser = {
+        displayName: user.displayName,
+        photoURL: user.photoURL
+      };
 
-        const currentUser = {
-          displayName: user.displayName,
-          email: user.email,
-        };
-        updateUserProfile(currentUser)
-          .then(() => {
-            saveUser(user.displayName, user.email, user.photoURL);
-          })
-          .catch((error) => console.error(error));
-        // console.log(currentUser);
-        setError("");
-      })
-      .catch((error) => console.error(error, error.message));
+      await updateProfile(user, currentUser);
+      
+      // Save user to Firestore if they don't exist
+      await saveUserToFirestore(user.displayName, user.email, user.photoURL);
+      
+      setCreateUserEmail(user.email);
+      
+      router.push('/');
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const saveUser = (displayName, email, photoURL) => {
-    const createdAt = new Date().toISOString();
-    const user = {
-      name: displayName,
-      email,
-      role: "user",
-      createdAt,
-      img: photoURL,
-    };
-    fetch("https://server-fare-bd.vercel.app/adduser", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(user),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        // console.log(data);
-        setCreateUserEmail(user.email);
-        // console.log(user.email);
-        toast("Register success", {
-          position: toast.POSITION.TOP_CENTER,
-        });
-      });
+  const saveUserToFirestore = async (displayName, email, photoURL) => {
+    try {
+      const createdAt = new Date().toISOString();
+      
+      const userData = {
+        name: displayName,
+        email,
+        role: "user",
+        createdAt,
+        img: photoURL,
+      };
+
+      // Check if user already exists in Firestore
+      const userDocRef = doc(db, "users", email);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        // Save to Firestore
+        await setDoc(userDocRef, userData);
+
+      }
+    } catch (error) {
+      console.error("Error saving user:", error);
+      throw error;
+    }
   };
 
-  const handleEmailLogin = (data) => {
+  const handleEmailLogin = async (data) => {
     const { email, password } = data;
 
-    signIn(email, password)
-      .then((result) => {
-        const user = result.user;
-        // console.log(result);
-        const currentUser = {
-          email: user.email,
-        };
-        // console.log(currentUser);
+    try {
+      setLoading(true);
+      setError("");
 
-        setError("");
-        toast("login success", {
-          position: toast.POSITION.TOP_CENTER,
-        });
-      })
-      .catch((e) => {
-        // console.error(e);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+      console.log(user);
 
-        // console.error(e.message);
-
-        setError(e.message);
-      });
+      
+      router.push('/');
+    } catch (error) {
+      console.error("Login error:", error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmailBlur = (event) => {
     const form = event.target;
     const email = form.value;
     setUserEmail(email);
-    // console.log(email);
   };
 
-  const handleForgotPassword = (event) => {
+  const handleForgotPassword = async (event) => {
     event.preventDefault();
 
-    // console.log(userEmail);
+    if (!userEmail) {
+      setError("Please enter your email address first");
+      return;
+    }
 
-    forgotPassword(userEmail)
-      .then(() => {
-        setError("");
-        toast("reset mail sent. Check Your mail box", {
-          position: toast.POSITION.TOP_CENTER,
-        });
-        // alert('sent reset link')
-      })
-      .catch((error) => {
-        setError(error.message);
-      });
+    try {
+      setLoading(true);
+      setError("");
+
+      await sendPasswordResetEmail(auth, userEmail);
+      
+    } catch (error) {
+      console.error("Password reset error:", error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -213,23 +220,26 @@ const Login = () => {
             {/* Error show  */}
             <p className="text-red-500">{error}</p>
 
-            {/* {loading ? (
-           <p>Loading...</p>
-          ) : (
-            <Button className="lg:w-1/2 lg:mx-auto text-center " type="submit">
-              Log in
+            <Button
+              className={`lg:mx-auto w-full bg-secondary hover:bg-primary flex items-center justify-center${loading ? " disabled" : ""}`}
+              type="submit"
+              disabled={loading}
+            >
+              {loading && (
+                <span
+                  className="spinner-border spinner-border-sm mr-2 animate-spin inline-block w-4 h-4 border-2 border-t-2 border-t-white border-white rounded-full"
+                  role="status"
+                  aria-hidden="true"
+                  style={{
+                    borderTopColor: "white",
+                    borderRightColor: "transparent",
+                    borderBottomColor: "transparent",
+                    borderLeftColor: "transparent",
+                  }}
+                ></span>
+              )}
+              Login
             </Button>
-          )} */}
-            {loading ? (
-              <Loader />
-            ) : (
-              <Button
-                className=" lg:mx-auto w-full bg-secondary hover:bg-primary"
-                type="submit"
-              >
-                Login
-              </Button>
-            )}
           </form>
           <p className="my-4">
             Forgot Password?

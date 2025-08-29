@@ -1,15 +1,35 @@
-import { useAuth } from "@/Contexts/AuthContext";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useContext, useEffect, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
 import { AiOutlineFullscreen } from "react-icons/ai";
 import { CiLocationOn } from "react-icons/ci";
-import { TbCurrencyTaka } from "react-icons/tb";
 import soldImg from "../../../assets/images/sold.png";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/Firebase/firestore";
+
 const PropertyCard = ({ propertyData }) => {
-  const { user } = useAuth();
-  // console.log(propertyData);
+  const [ownerInfo, setOwnerInfo] = useState(null);
+
+  useEffect(() => {
+    const fetchOwnerInfo = async () => {
+      if (propertyData?.createdBy?.email) {
+        try {
+          const ownerDocRef = doc(db, "users", propertyData.createdBy.email);
+          const ownerSnap = await getDoc(ownerDocRef);
+          if (ownerSnap.exists()) {
+            setOwnerInfo(ownerSnap.data());
+          } else {
+            setOwnerInfo(null);
+          }
+        } catch (error) {
+          setOwnerInfo(null);
+        }
+      }
+    };
+    fetchOwnerInfo();
+  }, [propertyData?.createdBy?.email]);
+
   function numberWithCommas(x) {
+    if (!x) return "";
     x = x.toString();
     var pattern = /(-?\d+)(\d{3})/;
     while (pattern.test(x)) x = x.replace(pattern, "$1,$2");
@@ -18,111 +38,94 @@ const PropertyCard = ({ propertyData }) => {
   const priceWithCommas = numberWithCommas(propertyData?.price);
 
   return (
-    <>
-      <div propertyData={propertyData} className="w-full shadow-md">
-        <div className="relative single-product-wrap style-bottom">
-          {propertyData?.paid && (
-            <img
-              className="absolute top-0 right-0 z-10 w-20"
-              src={soldImg.src}
-              alt="sold"
-            />
-          )}
-          <Link
-            href={`/singleproperty/${propertyData?._id}`}
-            className="relative thumb"
-          >
-            {!propertyData?.paid && (
-              <span className="absolute top-0 left-0 px-5 py-2 -mx-5 -mt-3 text-white translate-x-4 translate-y-2 shadow-md rounded-br-3xl w-fit bg-secondary">
-                {propertyData?.property_condition === "toRent"
-                  ? "To Rent"
-                  : ""}
-              </span>
-            )}
+    <div className="w-full rounded-2xl shadow-xl bg-white hover:shadow-2xl transition-shadow duration-300 overflow-hidden group relative">
+      {/* Sold badge */}
+      {propertyData?.paid && (
+        <img
+          className="absolute top-3 right-3 z-20 w-16 drop-shadow-lg"
+          src={soldImg.src}
+          alt="sold"
+        />
+      )}
 
-            <img
-              className="w-full h-64"
-              src={propertyData?.property_picture}
-              alt="img"
-            />
-            <div className="absolute bottom-0 left-0 w-full px-5 pt-12 text-white bg-gradient-to-t from-black product-wrap-details">
-              <div className="flex items-center justify-between mb-4 media">
-                <div className="flex items-center justify-between author">
-                  <img
-                    className="w-12 h-12 mr-4 border-2 rounded-full bg-primary border-secondary"
-                    src={propertyData?.user_image}
-                    alt="img"
-                  />
-                  <div className="text-xs font-medium media-body">
-                    <h6 className="mb-1">
-                      <a href="#">{propertyData?.user_name}</a>
-                    </h6>
-                    <p className="flex">
-                      <span className="text-xl">
-                        <CiLocationOn></CiLocationOn>
-                      </span>
-                      {propertyData?.location}
-                    </p>
-                  </div>
-                </div>
-                <div className="float-right cursor-pointer fav-btn">
-                  <span className="text-3xl duration-300 ease-in hover:text-secondary">
-                    <AiOutlineFullscreen> </AiOutlineFullscreen>
-                  </span>
+      {/* Card Image & Overlay */}
+      <Link href={`/singleproperty/${propertyData?.id}`} className="block relative">
+        {/* To Rent badge */}
+        {!propertyData?.paid && propertyData?.property_condition === "toRent" && (
+          <span className="absolute top-4 left-4 z-10 bg-secondary text-white px-4 py-1 rounded-br-2xl text-sm font-semibold shadow-lg">
+            To Rent
+          </span>
+        )}
+
+        <img
+          className="w-full h-64 object-cover object-center transition-transform duration-300 group-hover:scale-105"
+          src={propertyData?.photos?.[0]}
+          alt={propertyData?.title || "Property"}
+        />
+
+        {/* Overlay gradient */}
+        <div className="absolute bottom-0 left-0 w-full px-6 pt-16 pb-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
+          <div className="flex items-center justify-between">
+            {/* Owner Info */}
+            <div className="flex items-center gap-3">
+              <img
+                className="w-12 h-12 rounded-full border-2 border-secondary object-cover"
+                src={ownerInfo?.photoURL || ownerInfo?.img || "https://via.placeholder.com/100x100?text=Profile"}
+                alt={ownerInfo?.name || ownerInfo?.displayName || "Owner"}
+              />
+              <div>
+                <div className="font-semibold text-base">{ownerInfo?.name || ownerInfo?.displayName}</div>
+                <div className="flex items-center text-xs text-gray-200 mt-1">
+                  <CiLocationOn className="mr-1 text-lg" />
+                  <span>{propertyData?.location}</span>
                 </div>
               </div>
             </div>
-          </Link>
-          <>
-            <div className="">
-              <div className="py-5 shadow-md product-details-inner bg-gray-50 ">
-                <div className="w-full bg-secondary">
-                  <div className="py-2 pl-4 pr-0 mb-4 ml-5 bg-gray-100">
-                    <div className="flex items-center justify-between ">
-                      <div className="mb-2 font-medium text-primary">
-                        <p className="text-lg md:text-xl lg:text-2xl">
-                          {propertyData?.property_name}
-                        </p>
-                        <p className="mt-1 text-sm capitalize">
-                          owner: {propertyData?.owner_name}
-                        </p>
-                      </div>
-                      <div className="mr-3 text-sm">
-                        <h2 className="flex flex-row items-center text-xl font-semibold text-orange-600">
-                          $ {priceWithCommas}
-                        </h2>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ height: "70px" }}>
-                  <p className="inline-block px-5">
-                    {propertyData?.property_heading.length > 90
-                      ? propertyData?.property_heading.slice(0, 90) + "..."
-                      : propertyData?.property_heading}
-                  </p>
-                </div>
-              </div>
-              <Link href={`/singleproperty/${propertyData?._id}`}>
-                <div className="flex items-center justify-between py-2 pl-5 font-medium bg-gray-100 product-meta-bottom text-primary">
-                  <span>
-                    <span className="font-normal text-gray-600">
-                      {propertyData?.post_date?.slice(0, 10)}
-                    </span>
-                  </span>
-                  <button
-                    type="submit"
-                    className="text-white bg-secondary px-8 py-2 rounded-l-3xl "
-                  >
-                    More Details
-                  </button>
-                </div>
-              </Link>
+            {/* Fullscreen Icon */}
+            <div className="p-2 rounded-full bg-white/20 hover:bg-secondary/80 transition-colors cursor-pointer">
+              <AiOutlineFullscreen className="text-2xl text-white group-hover:text-secondary transition-colors" />
             </div>
-          </>
+          </div>
         </div>
+      </Link>
+
+      {/* Card Details */}
+      <div className="bg-white px-6 py-5">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-xl font-bold text-primary truncate">{propertyData?.title}</h3>
+            <p className="text-xs text-gray-500 capitalize mt-1">
+              Owner: {ownerInfo?.name || ownerInfo?.displayName}
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="text-2xl font-bold text-orange-600">
+              $ {priceWithCommas}
+            </span>
+          </div>
+        </div>
+        <p className="text-gray-700 text-sm mt-2 min-h-[56px]">
+          {propertyData?.description?.length > 90
+            ? propertyData?.description.slice(0, 90) + "..."
+            : propertyData?.description}
+        </p>
       </div>
-    </>
+
+      {/* Card Footer */}
+      <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t">
+        <span className="text-xs text-gray-500">
+          {propertyData?.post_date?.slice(0, 10)}
+        </span>
+        <Link href={`/singleproperty/${propertyData?.id}`}>
+          <button
+            type="button"
+            className="bg-secondary hover:bg-secondary/90 text-white font-semibold px-6 py-2 rounded-full shadow transition-colors"
+          >
+            More Details
+          </button>
+        </Link>
+      </div>
+    </div>
   );
 };
 

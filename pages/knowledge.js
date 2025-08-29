@@ -77,7 +77,7 @@ const leaseTypes = [
     badge: "primary",
   },
   {
-    type: "Rental",
+    type: "Rental with Option to Buy",
     duration: "Short-term or month-to-month",
     features: [
       "Flexible term",

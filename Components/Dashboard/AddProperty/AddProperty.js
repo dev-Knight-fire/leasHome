@@ -1,789 +1,519 @@
 import { useAuth } from "@/Contexts/AuthContext";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
-import DatePicker from "tailwind-datepicker-react";
-import DashboardSideBar from "../DashboardSideBar/DashboardSideBar";
+import { db } from "@/Firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
 function AddProperty() {
   const router = useRouter();
   const { user } = useAuth();
-  const options = {
-    title: "Registered Date",
-    autoHide: true,
-    todayBtn: false,
-    clearBtn: true,
-    // maxDate: new Date("2030-01-01"),
-    maxDate: new Date(),
-    minDate: new Date("1950-01-01"),
-    theme: {
-      background: "bg-white dark:bg-gray-800",
-      todayBtn: "",
-      clearBtn: "",
-      icons: "",
-      text: "",
-      disabledText: "bg-red-500 text-white",
-      input: "",
-      inputIcon: "",
-      selected: "",
-    },
-    icons: {
-      // () => ReactNode | JSX.Element
-      prev: () => <span>Previous</span>,
-      next: () => <span>Next</span>,
-    },
-    datepickerClassNames: "top-12 ",
-    defaultDate: new Date(Date.now()),
-    language: "en",
-  };
-
-  const [show, setShow] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString());
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [propertyPurpose, setPropertyPurpose] = useState("toRent");
-  const [defineOption, setDefineOption] = useState("commercial");
-  const [errPrice, setErrPrice] = useState(0);
-  const [errSize, setErrSize] = useState(0);
+  const [propertyType, setPropertyType] = useState("plot");
+  const [leaseType, setLeaseType] = useState("");
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const fileInputRef = useRef(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
+    setValue,
+    getValues,
+    watch,
   } = useForm();
 
-  const handleChange = (selectedDate) => {
-    setDate(new Date(selectedDate).toISOString());
+  const watchedLeaseType = watch("leaseType", leaseType);
+
+  // Handle file input change and preview
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    setPhotoFiles(files);
+    setValue("photos", files, { shouldValidate: true });
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setPhotoPreviews(previews);
+  };
+
+  // Remove a photo from the selection
+  const handleRemovePhoto = (idx) => {
+    const newFiles = photoFiles.filter((_, i) => i !== idx);
+    setPhotoFiles(newFiles);
+    setValue("photos", newFiles, { shouldValidate: true });
+    setPhotoPreviews(newFiles.map((file) => URL.createObjectURL(file)));
+    // Also update the file input's value so it matches the state
+    if (fileInputRef.current) {
+      // Create a new DataTransfer to update the input's files
+      const dt = new DataTransfer();
+      newFiles.forEach(file => dt.items.add(file));
+      fileInputRef.current.files = dt.files;
+    }
+  };
+
+  // Upload photos to Firebase Storage and return their download URLs
+  const uploadPhotosToStorage = async (files) => {
+    if (!files || files.length === 0) return [];
+    const storage = getStorage();
+    const uploadPromises = files.map(async (file) => {
+      // Use a unique path for each photo
+      const filePath = `property_photos/${user?.uid || "anonymous"}/${Date.now()}_${Math.random().toString(36).substring(2, 10)}_${file.name}`;
+      const storageRef = ref(storage, filePath);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      return url;
+    });
+    return Promise.all(uploadPromises);
   };
 
   const handleAddProperty = async (data) => {
-    const {
-      areaType,
-      balcony,
-      bathroom,
-      category,
-      floor,
-      location,
-      ownerName,
-      phone,
-      propertyHeading,
-      propertyName,
-      description,
-      purpose,
-      room,
-      size,
-      price,
-      upload,
-      featureImage,
-      division,
-    } = data;
-
-    const status = data.status || "complete";
-
-    const propertyImage = upload[0];
-    const featureImageInput = featureImage[0];
-
-    const propertyFormData = new FormData();
-    const featureFormData = new FormData();
-    propertyFormData.append("image", propertyImage);
-    featureFormData.append("image", featureImageInput);
-
-    const propertyImageConfig = {
-      method: "POST",
-      body: propertyFormData,
-    };
-
-    const featureImageConfig = {
-      method: "POST",
-      body: featureFormData,
-    };
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const propertyImgBbRes = await fetch(
-        `https://api.imgbb.com/1/upload?key=be9f4672d77547e0a485d8549db33d64`,
-        propertyImageConfig
-      );
-
-      const propertyImgBbData = await propertyImgBbRes.json();
-      // feature image post
-      const featureImgBbRes = await fetch(
-        `https://api.imgbb.com/1/upload?key=be9f4672d77547e0a485d8549db33d64`,
-        featureImageConfig
-      );
-
-      const featureImgBbData = await featureImgBbRes.json();
-
-      if (!propertyImgBbData.success && !featureImgBbData.success) return;
-      const property = {
-        area_type: areaType,
-        property_type: category,
-        location,
-        owner_name: ownerName,
-        user_email: user?.email,
-        user_image: user?.photoURL,
-        user_name: user?.displayName,
-        phone,
-        price,
-        property_heading: propertyHeading,
-        property_name: propertyName,
-        details: description,
-        property_condition: purpose,
-        size,
-        registered: new Date(date).toISOString(),
-        division,
-        flat_feature: [
-          {
-            floor,
-            room,
-            balcony,
-            bathroom,
-            feature_img: featureImgBbData.data.url,
-          },
-        ],
-        completation_status: status,
-        property_picture: propertyImgBbData.data.url,
-        post_date: new Date().toISOString(),
-        advertised: false,
-      };
-
-      const config = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // authorization: `Bearer ${localStorage.getItem(fareBD-token)}`,
-        },
-        body: JSON.stringify(property),
-      };
-
-      const res = await fetch("https://server-fare-bd.vercel.app/property", config);
-      const data = await res.json();
-
-      if (data.acknowledged) {
+      // Validate that at least one photo is selected
+      if (!photoFiles || photoFiles.length === 0) {
+        toast.error("At least one photo is required.");
         setLoading(false);
-        router.push("/");
-
-        toast.success(`Hey ${user?.displayName}! your product registered successfully`, {
-          position: toast.POSITION.TOP_CENTER,
-        })
-
+        return;
       }
+
+      // Upload photos to Firebase Storage
+      const photoUrls = await uploadPhotosToStorage(photoFiles);
+
+      let developmentPlan = data.developmentPlan;
+      if (data.type === "plot") {
+        if (!Array.isArray(developmentPlan)) {
+          developmentPlan = developmentPlan ? [developmentPlan] : [];
+        }
+      }
+
+      const propertyData = {
+        type: data.type,
+        location: data.location,
+        title: data.title,
+        description: data.description,
+        price: Number(data.price),
+        leaseType: data.leaseType,
+        utilities: {
+          water: data.water === "yes",
+          electricity: data.electricity === "yes",
+          sewer: data.sewer === "yes",
+          gas: data.gas === "yes",
+        },
+        accessibility: data.accessibility,
+        publicLighting: data.publicLighting === "yes",
+        sidewalk: data.sidewalk === "yes",
+        photos: photoUrls,
+        createdBy: {
+          email: user?.email || "",
+          name: user?.displayName || "",
+          photoURL: user?.photoURL || "",
+        },
+        createdAt: serverTimestamp(),
+      };
+
+      if (data.leaseType === "Rental with Option to buy") {
+        propertyData.fullValueOfProperty = data.fullValueOfProperty ? Number(data.fullValueOfProperty) : null;
+      }
+
+      if (data.type === "plot") {
+        propertyData.developmentPlan = developmentPlan;
+      } else if (data.type === "building") {
+        propertyData.buildingType = data.buildingType;
+      }
+
+      await addDoc(collection(db, "properties"), propertyData);
+
+      toast.success("Property registered successfully!", {
+        position: "top-center",
+      });
+      reset();
+      setPhotoFiles([]);
+      setPhotoPreviews([]);
+      setLoading(false);
+      // Reset file input value so "No file chosen" is shown again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      router.push("/");
     } catch (err) {
       setLoading(false);
-      // console.error(err);
+      toast.error("Failed to register property.");
     }
-  };
-  const handleClose = (state) => {
-    setShow(state);
   };
 
   return (
-    <div className="flex">
-      <DashboardSideBar></DashboardSideBar>
-
-      <div className="  max-w-[768px] w-[95%] mx-auto">
-        <h2 className="title uppercase p-8 text-center mb-8 bg-secondary text-white text-2xl font-semibold">
-          Register Your Property{" "}
-        </h2>
-
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
+      <div className="max-w-2xl w-full mx-auto my-10">
+        <div className="bg-gradient-to-r from-green-700 to-gray-900 rounded-t-2xl shadow-lg">
+          <h2 className="uppercase p-8 text-center text-white text-3xl font-extrabold tracking-wider drop-shadow-lg">
+            Register Your Property
+          </h2>
+        </div>
         <form
           onSubmit={handleSubmit(handleAddProperty)}
-          className="p-4 rounded-sm shadow-md shadow-primary/10"
+          className="p-8 rounded-b-2xl shadow-xl bg-white"
         >
-          <div className="grid gap-5 md:grid-cols-2 md:gap-6">
-            <div className="relative w-full mb-6 group">
-              <input
-                type="text"
-                name="floating_name"
-                id="floating_name"
-                className={`block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer ${errors.propertyName
-                  ? "focus:border-red-500 border-red-500"
-                  : "focus:border-secondary"
-                  }`}
-                placeholder=" "
-                {...register("propertyName", { required: true })}
-              />
-
-              <label
-                htmlFor="floating_name"
-                className="peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
+          {/* Type, Lease Type & Location */}
+          <div className="flex flex-col md:flex-row gap-6 mb-6">
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Type</label>
+              <select
+                {...register("type", { required: true })}
+                value={propertyType}
+                onChange={e => setPropertyType(e.target.value)}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.type ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
               >
-                Property Name
-              </label>
-              {errors.propertyName && (
-                <span className="text-xs text-red-500">
-                  This field is required
-                </span>
+                <option value="plot">Plot</option>
+                <option value="building">Building</option>
+              </select>
+              {errors.type && (
+                <p className="text-red-600 text-xs mt-1">Type is required</p>
               )}
             </div>
-            <div className="relative w-full mb-6 group">
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Lease Type</label>
+              <select
+                {...register("leaseType", { required: true })}
+                value={leaseType}
+                onChange={e => {
+                  setLeaseType(e.target.value);
+                  setValue("leaseType", e.target.value, { shouldValidate: true });
+                }}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.leaseType ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="Lease">Lease</option>
+                <option value="Long-term rental">Long-term rental</option>
+                <option value="Rental with Option to buy">Rental with Option to buy</option>
+              </select>
+              {errors.leaseType && (
+                <p className="text-red-600 text-xs mt-1">Lease type is required</p>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Location</label>
               <input
                 type="text"
-                name="floating_name"
-                id="floating_name"
-                className={`block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer ${errors.ownerName
-                  ? "focus:border-red-500 border-red-500"
-                  : "focus:border-secondary"
-                  }`}
-                placeholder=" "
-                {...register("ownerName", { required: true })}
+                placeholder="Enter location"
+                {...register("location", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.location ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
               />
-              <label
-                htmlFor="floating_name"
-                className="peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Owner name
-              </label>
-              {errors.ownerName && (
-                <span className="text-xs text-red-500">
-                  This field is required
-                </span>
+              {errors.location && (
+                <p className="text-red-600 text-xs mt-1">Location is required</p>
               )}
             </div>
           </div>
 
-          <div className="relative w-full mb-6 group">
+          {/* Full value of property (conditional) */}
+          {watchedLeaseType === "Rental with Option to buy" && (
+            <div className="mb-6">
+              <label className="block mb-2 font-semibold text-gray-900">Full value of property (USD)</label>
+              <input
+                type="number"
+                min={0}
+                step="any"
+                placeholder="Enter full value of property"
+                {...register("fullValueOfProperty", { required: true, min: 0 })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.fullValueOfProperty ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              />
+              {errors.fullValueOfProperty && (
+                <p className="text-red-600 text-xs mt-1">Full value is required and must be positive</p>
+              )}
+            </div>
+          )}
+
+          {/* Title */}
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold text-gray-900">Title</label>
             <input
               type="text"
-              name="floating_heading"
-              id="floating_heading"
-              className={`block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer ${errors.propertyHeading
-                ? "focus:border-red-500 border-red-500"
-                : "focus:border-secondary"
-                }`}
-              placeholder=" "
-              {...register("propertyHeading", { required: true })}
+              placeholder="Enter title"
+              {...register("title", { required: true })}
+              className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.title ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
             />
-            <label
-              htmlFor="floating_heading"
-              className="peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-            >
-              Property Heading
-            </label>
-            {errors.propertyHeading && (
-              <span className="text-xs text-red-500">
-                This field is required
-              </span>
+            {errors.title && (
+              <p className="text-red-600 text-xs mt-1">Title is required</p>
             )}
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2 md:gap-6">
-            <div className="relative w-full mb-8 group">
-              <input
-                type="text"
-                name="floating_location"
-                id="floating_location"
-                className={`block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer ${errors.location
-                  ? "focus:border-red-500 border-red-500"
-                  : "focus:border-secondary"
-                  }`}
-                placeholder=" "
-                {...register("location", { required: true })}
-              />
-              <label
-                htmlFor="floating_location"
-                className="peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Location
-              </label>
-              {errors.location && (
-                <span className="text-xs text-red-500">
-                  This field is required
-                </span>
-              )}
-            </div>
-
-            <div className="relative w-full mb-6 group">
-              <label
-                htmlFor="purpose"
-                className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Purpose
-              </label>
-              <select
-                id="purpose"
-                className="block py-2.5 shadow-md shadow-primary/10 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0 focus:border-secondary peer"
-                {...register("purpose")}
-                onChange={(e) => setPropertyPurpose(e.target.value)}
-                defaultValue={"toSale"}
-              >
-                <option value="toSale">
-                  To Sale
-                </option>
-                <option value="toRent">To Rent</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid gap-5 mb-6 md:grid-cols-2 md:gap-6">
-            <div className="relative w-full mb-6 group">
-              <input
-                type="tel"
-                minLength={11}
-                name="floating_phone"
-                id="floating_phone"
-                className={`block py-2.5 shadow-md shadow-primary/10 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer ${errors.phone
-                  ? "focus:border-red-500 border-red-500"
-                  : "focus:border-secondary"
-                  }`}
-                placeholder=" "
-                {...register("phone", {
-                  required: true,
-                  valueAsNumber: true,
-                  // pattern: {
-                  //   value: /^(0|[1-9]\d*)(\.\d+)?$/,
-                  // },
-                  // minLength: {
-                  //   value: 10,
-                  //   message: "Phone number should be 11 characters long",
-                  // },
-                })}
-              />
-              <label
-                htmlFor="floating_phone"
-                className="peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Phone number (123-456-7890)
-              </label>
-
-              {errors.phone && (
-                <span className="text-xs text-red-500">
-                  {/* {errors.phone.message} */}
-                  This field is required
-                </span>
-              )}
-            </div>
-
-            <div className="relative w-full mb-6 group">
-              <label
-                htmlFor="areaType"
-                className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Area Type
-              </label>
-              <select
-                id="areaType"
-                className="block py-2.5 shadow-md shadow-primary/10 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0 focus:border-secondary peer"
-                {...register("areaType", { required: true })}
-                onChange={(e) => setDefineOption(e.target.value)}
-                defaultValue={""}
-              >
-                <option value="" >Select Area Type</option>
-                <option value="residential">Residential</option>
-                <option value="commercial">
-                  Commercial
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-5 mb-6 md:grid-cols-2 md:gap-6">
-            <div className="relative w-full mb-6 group">
-              {/* date picker goes here */}
-              <label
-                htmlFor="registeredDate"
-                className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Registered Date
-              </label>
-              <DatePicker
-                options={options}
-                onChange={handleChange}
-                show={show}
-                setShow={handleClose}
-                classNames="block shadow-md shadow-primary/10  w-full text-sm text-gray-900 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0 focus:border-secondary peer border-0"
-              />
-            </div>
-
-            <div className="relative w-full mb-6 group">
-              <label
-                htmlFor="category"
-                className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Category
-              </label>
-              <select
-                id="category"
-                className="block py-2.5 shadow-md shadow-primary/10 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0 focus:border-secondary peer"
-                {...register("category", { required: true })}
-                defaultValue={""}
-              >
-                {defineOption === "commercial" ? (
-                  <> <option value="" >Select Category</option>
-                    <option value="office">
-                      Office
-                    </option>
-                    <option value="floor">Floor</option>
-                    <option value="duplex">Duplex</option>
-                    <option value="building">Building</option>
-                    <option value="warehouse">Warehouse</option>
-                    <option value="shop">Shop</option>
-                    <option value="appartment">Appartment</option>
-                    <option value="plaza">Plaza</option>
-                    <option value="plot">Plot</option>
-                    <option value="factory">Factory</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="" >Select Category</option>
-                    <option value="appartment">
-                      Appartment
-                    </option>
-                    <option value="penthouse">Penthouse</option>
-                    <option value="plaza">Plaza</option>
-                    <option value="plot">Plot</option>
-                    <option value="room">Room</option>
-                    <option value="duplex">
-                      Duplex
-                    </option>
-                    <option value="building">Building</option>
-                  </>
-                )}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-5 mb-6 md:grid-cols-2 md:gap-6">
-            <div className="relative w-full mb-6 group">
-              <label
-                style={{ lineHeight: "10px" }}
-                className="block mb-1 text-xs font-medium text-gray-900 dark:text-white"
-                htmlFor="user_avatar"
-              >
-                Upload file
-              </label>
-              <input
-                style={{ lineHeight: "10px" }}
-                className="block w-full text-xs text-gray-900 rounded-sm shadow-md cursor-pointer shadow-primary/10 bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:placeholder-gray-400"
-                aria-describedby="user_avatar_help"
-                id="user_avatar small_input"
-                type="file"
-                multiple
-                {...register("upload", { required: true })}
-              />
-              {errors?.upload && (
-                <p className="absolute text-xs text-red-500">
-                  Image must be provided
-                </p>
-              )}
-            </div>
-            <div
-              style={{ alignSelf: "end" }}
-              className="relative w-full mb-6 group"
-            >
-              <label
-                htmlFor="status"
-                className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Status
-              </label>
-              <select
-                id="status"
-                className={`block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer focus:border-secondary ${propertyPurpose === "toRent" && "cursor-not-allowed"
-                  }`}
-                {...register("status")}
-                disabled={propertyPurpose === "toRent"}
-                defaultValue={"complete"}
-              >
-                <option value="complete">
-                  Complete
-                </option>
-                <option value="on going">On Going </option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-4 md:gap-3">
-            <div className="relative w-full group">
-              <div className="relative w-full mb-6 group">
-                <label
-                  htmlFor="floor"
-                  className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-                >
-                  Floor
-                </label>
-                <select
-                  id="floor"
-                  className="block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer focus:border-secondary"
-                  {...register("floor")}
-                  defaultValue={"1"}
-                >
-                  <option value="0">0</option>
-                  <option value="1">
-                    1
-                  </option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="relative w-full group">
-              <div className="relative w-full mb-6 group">
-                <label
-                  htmlFor="room"
-                  className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-                >
-                  Room
-                </label>
-                <select
-                  id="room"
-                  className="block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer focus:border-secondary"
-                  {...register("room")}
-                  defaultValue={"1"}
-                >
-                  <option value="0">0</option>
-                  <option value="1">
-                    1
-                  </option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="relative w-full group">
-              <div className="relative w-full mb-6 group">
-                <label
-                  htmlFor="bathroom"
-                  className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-                >
-                  Bathroom
-                </label>
-                <select
-                  id="bathroom"
-                  className="block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer focus:border-secondary"
-                  {...register("bathroom")}
-                  defaultValue={"1"}
-                >
-                  <option value="0">0</option>
-                  <option value="1">
-                    1
-                  </option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="relative w-full group">
-              <div className="relative w-full mb-6 group">
-                <label
-                  htmlFor="balcony"
-                  className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-                >
-                  Balcony
-                </label>
-                <select
-                  id="balcony"
-                  className="block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer focus:border-secondary"
-                  {...register("balcony")}
-                  defaultValue={"1"}
-                >
-                  <option value="0">0</option>
-                  <option value="1">
-                    1
-                  </option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid mb-6 md:grid-cols-2 md:gap-6">
-            <div className="relative w-full mb-6 group">
-              <input
-                onKeyUp={(e) => setErrSize(e.target.value)}
-                min="1"
-                type="number"
-                name="floating_size"
-                id="floating_size"
-                className={`block py-2.5 shadow-md shadow-primary/10 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0 peer ${parseInt(errSize) < 0
-                  ? "border-red-500 focus:border-red-500"
-                  : "focus:border-secondary"
-                  }`}
-                placeholder=" "
-                {...register("size", { required: true })}
-              />
-              <label
-                htmlFor="floating_size"
-                className="peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Property Size (sq' f'')
-              </label>
-              {errors.size && (
-                <span className="text-xs text-red-500">
-                  This field is required
-                </span>
-              )}
-            </div>
-            <div className="relative w-full mb-6 group">
-              <input
-                onKeyUp={(e) => setErrPrice(e.target.value)}
-                type="number"
-                min="1"
-                name="floating_price"
-                id="floating_price"
-                className={`block py-2.5 shadow-md shadow-primary/10 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0 peer ${parseInt(errPrice) < 0
-                  ? "border-red-500 focus:border-red-500"
-                  : "focus:border-secondary"
-                  }`}
-                placeholder=" "
-                {...register("price", { required: true })}
-              />
-              <label
-                htmlFor="floating_price"
-                className="peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Price
-              </label>
-              {errors.price && (
-                <span className="text-xs text-red-500">
-                  This field is required
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="grid items-center gap-5 mb-6 md:grid-cols-2 md:gap-6">
-            <div className="relative w-full mb-6 group">
-              <label
-                style={{ lineHeight: "10px" }}
-                className="block mb-1 text-xs font-medium text-gray-900 dark:text-white"
-                htmlFor="user_avatar"
-              >
-                Feauture Image
-              </label>
-              <input
-                style={{ lineHeight: "10px" }}
-                className="block w-full text-xs text-gray-900 rounded-sm shadow-md cursor-pointer shadow-primary/10 bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:placeholder-gray-400"
-                aria-describedby="user_avatar_help"
-                id="user_avatar small_input"
-                type="file"
-                multiple
-                {...register("featureImage", { required: true })}
-              />
-              {errors?.featureImage && (
-                <p className="absolute text-xs text-red-500">
-                  Feauture Image must be provided
-                </p>
-              )}
-            </div>
-            <div
-              style={{ alignSelf: "end" }}
-              className="relative w-full mb-6 group "
-            >
-              <label
-                htmlFor="status"
-                className="peer-focus:font-medium absolute text-md  text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-1 -z-10 origin-[0] font-semibold peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-              >
-                Division
-              </label>
-              <select
-                id="division"
-                className="block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0  peer focus:border-secondary"
-                {...register("division", { required: true })}
-                defaultValue={""}
-              ><option value="">Select Division</option>
-                <option value="Dhaka">Dhaka</option>
-                <option value="Chattogram">
-                  Chattogram
-                </option>
-                <option value="Rajsahi">Rajshahi</option>
-                <option value="Khulna">Khulna</option>
-                <option value="Rangpur">Rangpur</option>
-                <option value="Barisal">Barisal</option>
-                <option value="Sylhet">Sylhet</option>
-                <option value="Mymensing">Mymensingh</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-start mb-6">
-            <label
-              htmlFor="message"
-              className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-            >
-              Property Description
-            </label>
+          {/* Description */}
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold text-gray-900">Description</label>
             <textarea
-              id="message"
-              rows="4"
-              className="block py-2.5 shadow-md shadow-primary/10 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none focus:ring-0 focus:border-secondary peer"
-              placeholder="Write your thoughts here..."
+              rows={3}
+              placeholder="Enter description"
               {...register("description", { required: true })}
-            ></textarea>
+              className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.description ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+            />
             {errors.description && (
-              <span className="text-xs text-red-500">
-                This field is required
-              </span>
+              <p className="text-red-600 text-xs mt-1">Description is required</p>
             )}
           </div>
 
-          <div className="flex items-start mb-6">
-            <div className="flex items-center h-5">
+          {/* Price */}
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold text-gray-900">Monthly Payment (USD)</label>
+            <input
+              type="number"
+              min={0}
+              placeholder="Enter price"
+              {...register("price", { required: true, min: 0 })}
+              className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.price ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+            />
+            {errors.price && (
+              <p className="text-red-600 text-xs mt-1">Price is required and must be positive</p>
+            )}
+          </div>
+
+          {/* Photos */}
+          <div className="mb-8">
+            <label className="block mb-2 font-semibold text-gray-900">Photos</label>
+            <div className="flex flex-col md:flex-row gap-4 items-center">
               <input
-                onChange={() => setAgree(!agree)}
-                id="terms"
-                type="checkbox"
-                value=""
-                className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800"
+                type="file"
+                accept="image/*"
+                multiple
+                ref={fileInputRef}
+                // Remove {...register("photos", { required: true })} because react-hook-form does not handle files well
+                onChange={handlePhotoChange}
+                className="file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-900 hover:file:bg-green-100 transition"
+                required
+                // Show selected file names in a custom way below
               />
+              {/* Show selected file names instead of default "No file chosen" */}
+              {photoFiles && photoFiles.length > 0 && (
+                <div className="flex flex-col gap-1 text-xs text-gray-700">
+                  {photoFiles.map((file, idx) => (
+                    <span key={idx}>{file.name}</span>
+                  ))}
+                </div>
+              )}
+              {(!photoFiles || photoFiles.length === 0) && (
+                <span className="text-red-600 text-xs mt-1">At least one photo is required</span>
+              )}
             </div>
-            <label
-              htmlFor="terms"
-              className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300"
-            >
-              I agree with the{" "}
-              <a
-                href="#"
-                className="text-blue-600 hover:underline dark:text-blue-500"
+            {photoPreviews.length > 0 && (
+              <div className="flex flex-wrap gap-4 mt-4">
+                {photoPreviews.map((src, idx) => (
+                  <div key={idx} className="relative group">
+                    <img
+                      src={src}
+                      alt={`Preview ${idx + 1}`}
+                      className="w-24 h-24 object-cover rounded-xl border-2 border-green-200 shadow-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(idx)}
+                      className="absolute top-1 right-1 bg-green-600 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition"
+                      title="Remove"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Utilities */}
+          <div className="flex flex-col md:flex-row gap-6 mb-6">
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Water</label>
+              <select
+                {...register("water", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.water ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
               >
+                <option value="">Select</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {errors.water && (
+                <p className="text-red-600 text-xs mt-1">Required</p>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Electricity</label>
+              <select
+                {...register("electricity", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.electricity ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {errors.electricity && (
+                <p className="text-red-600 text-xs mt-1">Required</p>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Sewer</label>
+              <select
+                {...register("sewer", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.sewer ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {errors.sewer && (
+                <p className="text-red-600 text-xs mt-1">Required</p>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Gas</label>
+              <select
+                {...register("gas", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.gas ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {errors.gas && (
+                <p className="text-red-600 text-xs mt-1">Required</p>
+              )}
+            </div>
+          </div>
+
+          {/* Accessibility, Public Lighting, Sidewalk */}
+          <div className="flex flex-col md:flex-row gap-6 mb-6">
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Accessibility</label>
+              <select
+                {...register("accessibility", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.accessibility ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="gravel road">Gravel Road</option>
+                <option value="paved road">Paved Road</option>
+                <option value="asphalt">Asphalt</option>
+                <option value="concrete road">Concrete Road</option>
+              </select>
+              {errors.accessibility && (
+                <p className="text-red-600 text-xs mt-1">Accessibility is required</p>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Public Lighting</label>
+              <select
+                {...register("publicLighting", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.publicLighting ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {errors.publicLighting && (
+                <p className="text-red-600 text-xs mt-1">Required</p>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block mb-2 font-semibold text-gray-900">Sidewalk</label>
+              <select
+                {...register("sidewalk", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.sidewalk ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+              {errors.sidewalk && (
+                <p className="text-red-600 text-xs mt-1">Required</p>
+              )}
+            </div>
+          </div>
+
+          {/* Conditional Fields */}
+          {propertyType === "plot" && (
+            <div className="mb-6">
+              <label className="block mb-2 font-semibold text-gray-900">Development Plan</label>
+              <select
+                {...register("developmentPlan", { 
+                  required: true,
+                  validate: value => (Array.isArray(value) ? value.length > 0 : !!value) || "Development plan is required"
+                })}
+                multiple
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.developmentPlan ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+                size={5}
+              >
+                <option value="single-family homes">Single-family homes</option>
+                <option value="multi-family buildings">Multi-family buildings</option>
+                <option value="warehouse">Warehouse</option>
+                <option value="office buildings">Office buildings</option>
+                <option value="industrial and manufacturing">Industrial and manufacturing</option>
+              </select>
+              {errors.developmentPlan && (
+                <p className="text-red-600 text-xs mt-1">{errors.developmentPlan.message || "Development plan is required"}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple options.</p>
+            </div>
+          )}
+
+          {propertyType === "building" && (
+            <div className="mb-6">
+              <label className="block mb-2 font-semibold text-gray-900">Type of Building</label>
+              <select
+                {...register("buildingType", { required: true })}
+                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.buildingType ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+              >
+                <option value="">Select</option>
+                <option value="house">House</option>
+                <option value="terraced house">Terraced house</option>
+                <option value="apartment building">Apartment building</option>
+                <option value="tenement house">Tenement house</option>
+                <option value="skyscraper">Skyscraper</option>
+                <option value="office building">Office building</option>
+                <option value="other">Other</option>
+              </select>
+              {errors.buildingType && (
+                <p className="text-red-600 text-xs mt-1">Type of building is required</p>
+              )}
+            </div>
+          )}
+
+          {/* Terms and Conditions */}
+          <div className="mb-6 flex items-center">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={agree}
+              onChange={() => setAgree(!agree)}
+              required
+              className="mr-3 accent-green-600 w-5 h-5"
+            />
+            <label htmlFor="terms" className="text-sm text-gray-900">
+              I agree with the{" "}
+              <a href="#" className="text-green-700 underline hover:text-green-900 transition">
                 terms and conditions
               </a>
             </label>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
-            className={`mt-2 text-white bg-secondary hover:bg-secondary focus:ring-4 focus:outline-none focus:ring-secondary/60  font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-secondary dark:hover:bg-secondary dark:focus:ring-secondary/60 transition  duration-300  ${agree && "transform active:translate-y-1"
-              }`}
+            className={`w-full py-3 px-4 rounded-xl bg-gradient-to-r from-green-700 to-gray-900 text-white font-bold text-lg shadow-md transition-all duration-200 ${(!agree || loading) ? "opacity-60 cursor-not-allowed" : "hover:from-green-800 hover:to-black scale-105"}`}
             disabled={!agree || loading}
           >
-            {loading ? "Uploading..." : "Submit"}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                Saving...
+              </span>
+            ) : "Submit"}
           </button>
         </form>
       </div>
     </div>
   );
 }
+
 export default AddProperty;

@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 const Hero = () => {
   return (
@@ -42,7 +43,7 @@ const Hero = () => {
             </p>
           </div>
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 mt-10">
-            <a href="/properties" className="w-full md:w-auto">
+            <Link href="/properties" className="w-full md:w-auto" legacyBehavior>
               <button
                 className="w-full md:w-auto px-8 py-3 rounded-lg bg-secondary text-white font-semibold text-lg shadow-lg transition-all duration-300 ease-in-out hover:bg-orange-600 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-300"
                 style={{
@@ -52,8 +53,8 @@ const Hero = () => {
               >
                 Browse Properties
               </button>
-            </a>
-            <a href="/dashboard/addproperty" className="w-full md:w-auto">
+            </Link>
+            <Link href="/addproperty" className="w-full md:w-auto" legacyBehavior>
               <button
                 className="w-full md:w-auto px-8 py-3 rounded-lg bg-white text-secondary font-semibold text-lg shadow-lg border-2 border-secondary transition-all duration-300 ease-in-out hover:bg-secondary hover:text-white hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-300"
                 style={{
@@ -63,7 +64,7 @@ const Hero = () => {
               >
                 Add your Property
               </button>
-            </a>
+            </Link>
           </div>
         </div>
       </div>

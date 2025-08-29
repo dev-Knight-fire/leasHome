@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
           setList: userData.setList || false, // default to false if not set
           role: userData.role || "", // default to empty string if not set
           status: userData.status || "", // default status
-          avatar: listSnap.exists() ? listSnap.data().photos[listSnap.data().avatar]: "", // default avatar if not set
+          avatar: userData.photoURL || userData.img || "", // default avatar if not set
           isAdmin: userData.isAdministrator || false // default isAdmin
         });
       } else {

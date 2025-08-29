@@ -1,117 +1,107 @@
 "use client";
 
-import { GoogleAuthProvider } from "firebase/auth";
 import { Button, Checkbox, Label, Modal, TextInput } from "flowbite-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import React, { useContext, useState, } from "react";
-import { toast } from "react-toastify";
 import { useAuth } from "../../Contexts/AuthContext";
 import Loader from "../Shared/Loader/Loader";
-import { v4 as uuidv4 } from 'uuid';
 import { useForm } from "react-hook-form";
 import { FcGoogle } from "react-icons/fc";
-import { CiFacebook } from "react-icons/ci";
-// import { FaBeer, FcGoogle } from "react-icons/fc";
+import { auth, googleProvider } from "@/Firebase/auth";
+import { db } from "@/Firebase/firestore";
+import { storage } from "@/Firebase/storage";
+import { 
+   createUserWithEmailAndPassword, 
+   updateProfile, 
+   signInWithPopup 
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 const Register = () => {
 
    const { user } = useAuth()
-   // console.log(user)
-
    const router = useRouter()
-   // if (user) {
-   //    router.push('/')
-   // }
 
    const {
       register,
       handleSubmit,
       formState: { errors },
+      reset
    } = useForm();
 
    const [error, setError] = useState("");
    const [loading, setLoading] = useState(false);
    const [loginUserEmail, setLoginUserEmail] = useState('')
-   const googleProvider = new GoogleAuthProvider();
    const [createUserEmail, setCreateUserEmail] = useState('')
    const [termsAccepted, setTermsAccepted] = useState(false);
 
    const termsAndCondition = (event) => {
       setTermsAccepted(event.target.checked);
-
-   };
-   const handleGoogleSignIn = () => {
-      providerLogin(googleProvider)
-         .then((result) => {
-            const user = result.user;
-            // console.log(user);
-
-            const currentUser = {
-               displayName: user.displayName,
-               email: user.email
-            }
-            updateUserProfile(currentUser)
-               .then(() => {
-                  saveUser(user.displayName, user.email, user.photoURL)
-               })
-               .catch(error => console.error(error))
-            // console.log(currentUser);
-            setError("");
-         })
-         .catch((error) => console.error(error, error.message));
-
    };
 
-   const saveUser = (displayName, email, photoURL) => {
-      let myuuid = uuidv4();
-      console.log(myuuid);
-      const createdAt = new Date().toISOString();
-      const user = { name: displayName, email, role: 'user', uid: myuuid, createdAt, img: photoURL }
-      console.log(user);
-      fetch('https://server-fare-bd.vercel.app/adduser', {
-         method: 'POST',
-         headers: {
-            "content-type": "application/json"
-         },
-         body: JSON.stringify(user)
-      })
-         .then(res => res.json())
-         .then(data => {
-            // console.log(data)
-            setCreateUserEmail(user.email)
-            // console.log(user.email)
-            toast("Register success", {
-               position: toast.POSITION.TOP_CENTER,
-            });
+   const handleGoogleSignIn = async () => {
+      try {
+         setLoading(true);
+         setError("");
+         
+         const result = await signInWithPopup(auth, googleProvider);
+         const user = result.user;
 
+         const currentUser = {
+            displayName: user.displayName,
+            photoURL: user.photoURL
+         };
 
-         })
-   }
-
-
-
-   const [passwordMatch, setPasswoedMatched] = useState()
-
-   const onchangeHande = (event) => {
-      event.preventDefault();
-      const form = event.target;
-      // console.log(event.target.value)
-      setPasswoedMatched(event.target.value)
-   }
-   const onchangeHande1 = (event) => {
-      event.preventDefault();
-      const form = event.target;
-      const second = event.target.value
-      if (second !== passwordMatch) {
-         setError(' Password not matched')
-
+         await updateProfile(user, currentUser);
+         
+         // Save user to Firestore
+         await saveUserToFirestore(user.displayName, user.email, user.photoURL);
+         
+         setCreateUserEmail(user.email);
+         
+         router.push('/');
+      } catch (error) {
+         console.error(error);
+         setError(error.message);
+      } finally {
+         setLoading(false);
       }
-      else {
-         setError('')
-         return
-      }
-   }
+   };
 
+   const saveUserToFirestore = async (displayName, email, photoURL) => {
+      try {
+         const createdAt = new Date().toISOString();
+         
+         const userData = { 
+            name: displayName, 
+            email, 
+            role: 'user', 
+            createdAt, 
+            img: photoURL 
+         };
+
+         // Save to Firestore
+         await setDoc(doc(db, "users", email), userData);
+
+      } catch (error) {
+         console.error("Error saving user:", error);
+         throw error;
+      }
+   };
+
+   const uploadImageToFirebase = async (imageFile) => {
+      try {
+         const storageRef = ref(storage, `profile-images/${Date.now()}-${imageFile.name}`);
+         const snapshot = await uploadBytes(storageRef, imageFile);
+         const downloadURL = await getDownloadURL(snapshot.ref);
+         return downloadURL;
+      } catch (error) {
+         console.error("Error uploading image:", error);
+         throw error;
+      }
+   };
 
    const handleRegister = async (data) => {
       const {
@@ -123,95 +113,57 @@ const Register = () => {
          userType
       } = data;
 
-      const image = photo[0];
       if (password !== password2) {
-         setError('password Password not matched')
-         return
+         setError('Passwords do not match');
+         return;
       }
-      setLoading(true)
-      setError('')
 
-      // console.log(photo[0]);
-      // console.log(name, image, email, password, password2, userType);
+      setLoading(true);
+      setError('');
 
-      const formData = new FormData()
-      formData.append('image', image)
+      try {
+         const image = photo[0];
+         let imageURL = '';
 
-      const url = `https://api.imgbb.com/1/upload?key=a961418ae79abf29d124da5532f6b6d5`
+         // Upload image to Firebase Storage
+         if (image) {
+            imageURL = await uploadImageToFirebase(image);
+         }
 
-      fetch(url, {
-         method: "POST",
-         body: formData,
-      })
-         .then(res => res.json())
-         .then(imgData => {
-            // console.log(imgData)
-            createUser(email, password)
-               .then((result) => {
-                  // console.log(result.user)
-                  // console.log(result.user)
-                  const currentUser = { displayName: name, photoURL: imgData.data.url }
-                  console.log(name)
-                  updateUserProfile(currentUser)
-                     .then(result => {
-                        // const users =  { name, email, password, createdAt: new Date().toISOString(), photoURL: data?.data?.display_url };
-                        // console.log(result)
-                        fetch('https://server-fare-bd.vercel.app/adduser', {
-                           method: 'POST',
-                           headers: {
-                              "content-type": "application/json"
-                           },
-                           body: JSON.stringify(insertUser)
-                        })
-                           .then(res => res.json())
-                           .then(data => {
-                              setLoading(false)
-                              // console.log(data)
-                              setCreateUserEmail(email)
-                              toast("Registration successful", {
-                                 position: toast.POSITION.TOP_CENTER
+         // Create user with email and password
+         const result = await createUserWithEmailAndPassword(auth, email, password);
+         const user = result.user;
 
-                              })
-                              form.reset()
-                              router.push('/')
+         // Update user profile
+         const currentUser = { 
+            displayName: name, 
+            photoURL: imageURL 
+         };
+         
+         await updateProfile(user, currentUser);
 
+         // Save user data to Firestore
+         const insertUser = { 
+            name: name, 
+            email: email, 
+            img: imageURL, 
+            role: userType || 'user', 
+            createdAt: new Date().toISOString() 
+         };
 
-                           })
-                           .catch(err => console.log(err))
-                        const user = result.user;
-                        // console.log(user)
-                        setLoading(false)
-                        setError("");
-                        if (user.email) {
-                           // console.log(user)
+         await setDoc(doc(db, "users", email), insertUser);
 
-                           toast("Registration successful", {
-                              position: toast.POSITION.TOP_CENTER
+         setCreateUserEmail(email);
+         
+         reset();
+         router.push('/');
 
-                           })
-                           // navigate(from, { replace: true });
-                           setLoading(false)
-                        }
-
-                     })
-                     .catch(err => console.log(err))
-
-                  // code start data store to mongodb
-                  // console.log(user)
-                  let myuuid = uuidv4();
-
-                  const insertUser = { name: name, email: email, uid: myuuid, img: imgData.data.url, role: userType, createdAt: new Date().toISOString(), }
-
-
-               })
-               .catch((e) => {
-                  // console.log(e);
-                  setError(e.message);
-                  setLoading(false)
-               });
-         })
-         .catch(err => console.log(err))
-
+      } catch (error) {
+         console.error(error);
+         setError(error.message);
+      } finally {
+         setLoading(false);
+      }
    };
 
 
@@ -308,52 +260,6 @@ const Register = () => {
                         </span>
                      )}
                   </div>
-                  {/* Select user type */}
-                  <div className="relative w-full mb-2 group flex gap-8 pt-2">
-                     <div className="flex gap-3">
-                        <input
-                           type="radio"
-                           name="floating_user_type_buyer"
-                           value="buyer"
-                           id="floating_user_type_buyer"
-                           className={`block shadow-md shadow-primary/10 py-2.5 px-0 text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none pl-2 focus:ring-0  peer ${errors.userType
-                              ? "focus:border-red-500 border-red-500"
-                              : "focus:border-secondary"
-                              }`}
-                           placeholder="Buyer "
-                           {...register("userType", { required: true })}
-                           defaultChecked
-                        />
-                        <label htmlFor="floating_user_type_buyer">Buyer</label>
-                     </div>
-                     <div className="flex gap-3">
-                        <input
-                           type="radio"
-                           name="floating_user_type_seller"
-                           value="seller"
-                           id="floating_user_type_seller"
-                           className={`block shadow-md shadow-primary/10 py-2.5 px-0 text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none pl-2 focus:ring-0  peer ${errors.userType
-                              ? "focus:border-red-500 border-red-500"
-                              : "focus:border-secondary"
-                              }`}
-                           placeholder="Seller "
-                           {...register("userType", { required: true })}
-                        />
-                        <label htmlFor="floating_user_type_seller">Seller</label>
-                     </div>
-
-                     <label
-                        htmlFor="floating_image"
-                        className="pl-2 peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
-                     >
-                        Select user type
-                     </label>
-                     {errors.userType && (
-                        <span className="text-xs text-red-500">
-                           This field is required
-                        </span>
-                     )}
-                  </div>
 
                   {/* password  */}
                   <div className="relative w-full mb-6 group">
@@ -408,6 +314,36 @@ const Register = () => {
                      )}
                   </div>
 
+                  {/* user type  */}
+                  <div className="relative w-full mb-6 group">
+                     <select
+                        name="floating_userType"
+                        id="floating_userType"
+                        className={`block shadow-md shadow-primary/10 py-2.5 px-0 w-full text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-secondary focus:outline-none pl-2 focus:ring-0  peer ${errors.userType
+                           ? "focus:border-red-500 border-red-500"
+                           : "focus:border-secondary"
+                           }`}
+                        {...register("userType", { required: true })}
+                     >
+                        <option value="">Select user type</option>
+                        <option value="user">User</option>
+                        <option value="landlord">Landlord</option>
+                        <option value="tenant">Tenant</option>
+                     </select>
+
+                     <label
+                        htmlFor="floating_userType"
+                        className="pl-2 peer-focus:font-medium absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-secondary peer-focus:dark:text-secondary peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6"
+                     >
+                        User Type
+                     </label>
+                     {errors.userType && (
+                        <span className="text-xs text-red-500">
+                           This field is required
+                        </span>
+                     )}
+                  </div>
+
                   {/* Error show  */}
                   {error && <p className="text-red-500">
                      {error}
@@ -447,15 +383,26 @@ const Register = () => {
                                     </Button>
                                 )
                         } */}
-                  {
-                     loading ? <Loader></Loader> :
-                        <Button
-                           className=" lg:mx-auto w-full bg-secondary hover:bg-primary"
-                           disabled={!termsAccepted}
-                           type="submit">
-                           Register
-                        </Button>
-                  }
+                  <Button
+                     className={`lg:mx-auto w-full bg-secondary hover:bg-primary flex items-center justify-center${loading ? " disabled" : ""}`}
+                     disabled={!termsAccepted || loading}
+                     type="submit"
+                  >
+                     {loading && (
+                        <span
+                           className="spinner-border spinner-border-sm mr-2 animate-spin inline-block w-4 h-4 border-2 border-t-2 border-t-white border-white rounded-full"
+                           role="status"
+                           aria-hidden="true"
+                           style={{
+                              borderTopColor: "white",
+                              borderRightColor: "transparent",
+                              borderBottomColor: "transparent",
+                              borderLeftColor: "transparent",
+                           }}
+                        ></span>
+                     )}
+                     Register
+                  </Button>
 
                   <div className="flex justify-between  py-4">
                      <div className="flex w-full">
@@ -468,11 +415,17 @@ const Register = () => {
                               <div className="flex gap-4 w-full">
                                  <Button
                                     outline={true}
-                                    className="hover:text-white text-3xl w-full bg-secondary"
+                                    className={`hover:text-white text-3xl w-full bg-secondary d-flex align-items-center justify-content-center${loading ? " disabled" : ""}`}
                                     onClick={handleGoogleSignIn}
+                                    disabled={loading}
                                  >
-                                    <span className="flex items-center justify-center font-bold hover:text-white focus:text-white w-full"><FcGoogle className="mr-2 text-xl" />
-                                       Google</span>
+                                    <span className="flex items-center justify-center font-bold hover:text-white focus:text-white w-full">
+                                       {loading && (
+                                          <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                       )}
+                                       <FcGoogle className="mr-2 text-xl" />
+                                       Google
+                                    </span>
                                  </Button>
                               </div>
                            </div>

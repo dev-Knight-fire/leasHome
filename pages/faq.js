@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   FaQuestionCircle,
   FaChevronDown,
@@ -23,9 +24,9 @@ const faqs = [
     answer: (
       <>
         The Cooper Calculator is a points-based tool that helps you assess your eligibility for a lease or rental—without checking BIK. Answer a few questions and get an instant, objective score.{" "}
-        <a href="/cooper" className="text-blue-600 underline hover:text-blue-800">
+        <Link href="/cooper" className="text-blue-600 underline hover:text-blue-800">
           Try it now!
-        </a>
+        </Link>
       </>
     ),
   },
@@ -56,9 +57,9 @@ const faqs = [
     answer: (
       <>
         Simply{" "}
-        <a href="/account" className="text-blue-600 underline hover:text-blue-800">
+        <Link href="/account" className="text-blue-600 underline hover:text-blue-800">
           create a free account
-        </a>
+        </Link>
         , then click “Add your listing” on the homepage or in your profile dashboard. Fill in the details and publish—it's that easy!
       </>
     ),
@@ -76,9 +77,9 @@ const faqs = [
     answer: (
       <>
         Visit our{" "}
-        <a href="/knowledge" className="text-blue-600 underline hover:text-blue-800">
+        <Link href="/knowledge" className="text-blue-600 underline hover:text-blue-800">
           Knowledge Base
-        </a>{" "}
+        </Link>{" "}
         for expert guides, contract templates, and comparisons of lease types.
       </>
     ),
@@ -161,47 +162,47 @@ const FaqPage = () => {
         <div className="text-center">
           <h5 className="font-bold text-xl mb-3 text-blue-800">Still have questions?</h5>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
+            <Link
               href="/account"
               className="inline-flex items-center justify-center rounded-full bg-blue-600 text-white px-6 py-3 text-lg font-semibold shadow hover:bg-blue-700 transition mb-2 sm:mb-0"
             >
               <FaUserCircle className="mr-2" /> Create Free Account
-            </a>
-            <a
+            </Link>
+            <Link
               href="/knowledge"
               className="inline-flex items-center justify-center rounded-full border-2 border-blue-600 text-blue-600 px-6 py-3 text-lg font-semibold bg-white hover:bg-blue-50 transition"
             >
               <FaBookOpen className="mr-2" /> Visit Knowledge Base
-            </a>
+            </Link>
           </div>
         </div>
       </div>
       <div className="w-full max-w-2xl mx-auto">
         <div className="flex flex-wrap justify-center gap-3">
-          <a
+          <Link
             href="/"
             className="inline-flex items-center rounded-full border border-slate-300 bg-white text-slate-700 px-5 py-2 font-medium hover:bg-slate-100 transition"
           >
             <FaHome className="mr-2" /> Home
-          </a>
-          <a
-            href="/listings"
+          </Link>
+          <Link
+            href="/properties"
             className="inline-flex items-center rounded-full border border-slate-300 bg-white text-slate-700 px-5 py-2 font-medium hover:bg-slate-100 transition"
           >
-            Browse Listings
-          </a>
-          <a
-            href="/calculator"
+            Browse Properties
+          </Link>
+          <Link
+            href="/cooper"
             className="inline-flex items-center rounded-full border border-slate-300 bg-white text-slate-700 px-5 py-2 font-medium hover:bg-slate-100 transition"
           >
-            <FaCalculator className="mr-2" /> Cooper Calculator
-          </a>
-          <a
+            <FaCalculator className="mr-2" /> Cooper Index
+          </Link>
+          <Link
             href="/terms"
             className="inline-flex items-center rounded-full border border-slate-300 bg-white text-slate-700 px-5 py-2 font-medium hover:bg-slate-100 transition"
           >
             Terms &amp; Privacy
-          </a>
+          </Link>
         </div>
       </div>
     </div>

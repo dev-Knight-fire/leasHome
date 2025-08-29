@@ -53,16 +53,19 @@ const Footer = () => {
                   <h2 className="mb-6 text-2xl font-semibold dark:text-white">Useful Links</h2>
                   <ul className="dark:text-gray-400">
                      <li>
-                        <a href="/dashboard" className="hover:underline flex items-center "><IoIosArrowForward />Dashboard</a>
+                        <Link href="/" className="hover:underline flex items-center "><IoIosArrowForward />Home</Link>
                      </li>
                      <li>
-                        <a href="/properties" className="hover:underline flex items-center "><IoIosArrowForward />Properties</a>
+                        <Link href="/properties" className="hover:underline flex items-center "><IoIosArrowForward />Properties</Link>
                      </li>
                      <li>
-                        <a href="/knowledge" className="hover:underline flex items-center"><IoIosArrowForward />Knowledge Base</a>
+                        <Link href="/cooper" className="hover:underline flex items-center "><IoIosArrowForward />Cooper Index</Link>
                      </li>
                      <li>
-                        <a href="/terms" className="hover:underline flex items-center"><IoIosArrowForward />Terms of Use</a>
+                        <Link href="/knowledge" className="hover:underline flex items-center"><IoIosArrowForward />Knowledge Base</Link>
+                     </li>
+                     <li>
+                        <Link href="/terms" className="hover:underline flex items-center"><IoIosArrowForward />Terms of Use</Link>
                      </li>
                   </ul>
                </div>
@@ -70,19 +73,19 @@ const Footer = () => {
                   <h2 className="mb-6 text-2xl font-semibold dark:text-white">Rent with us</h2>
                   <ul className="dark:text-gray-400">
                      <li>
-                        <a href="#" className="hover:underline flex items-center"><IoIosArrowForward />Rent a House</a>
+                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Rent a House</Link>
                      </li>
                      <li>
-                        <a href="#" className="hover:underline flex items-center"><IoIosArrowForward />Book Now</a>
+                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Book Now</Link>
                      </li>
                      <li>
-                        <a href="#" className="hover:underline flex items-center"><IoIosArrowForward />Book your Rooms</a>
+                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Book your Rooms</Link>
                      </li>
                      <li>
-                        <a href="#" className="hover:underline flex items-center"><IoIosArrowForward />Buy your Place</a>
+                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Buy your Place</Link>
                      </li>
                      <li>
-                        <a href="#" className="hover:underline flex items-center"><IoIosArrowForward />Privacy Policy</a>
+                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Privacy Policy</Link>
                      </li>
                   </ul>
                </div>
@@ -132,10 +135,10 @@ const Footer = () => {
 
                <ul className="flex flex-wrap items-center justify-center mt-3 text-3xl text-center text-white dark:text-gray-400 sm:mt-0 gap-4">
                   <li>
-                     <a href="#" className="hover:underline"><FiFacebook className='border p-1 rounded-full' /></a>
+                     <Link href="#" className="hover:underline"><FiFacebook className='border p-1 rounded-full' /></Link>
                   </li>
                   <li>
-                     <a href="#" className="hover:underline"><FiInstagram className='border p-1 rounded-full' /></a>
+                     <Link href="#" className="hover:underline"><FiInstagram className='border p-1 rounded-full' /></Link>
                   </li>
                </ul>
             </div>
