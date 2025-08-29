@@ -107,7 +107,7 @@ const Navbar = () => {
               <>
                 <Link href="/userprofile" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
                   <Avatar
-                    img={user?.photoURL}
+                    img={user?.img || user?.photoURL}
                     rounded={true}
                     className="border-2 border-white"
                   />

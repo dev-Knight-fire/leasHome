@@ -422,7 +422,7 @@ const UserProfile = () => {
                               {/* Profile Photo */}
                               <div className="flex items-center space-x-6">
                                  <img
-                                    src={userData?.photoURL || "https://via.placeholder.com/100x100?text=Profile"}
+                                    src={userData?.photoURL || userData?.img || "https://via.placeholder.com/100x100?text=Profile"}
                                     alt="Profile"
                                     className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
                                  />
