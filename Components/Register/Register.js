@@ -315,7 +315,7 @@ const Register = () => {
                   </div>
 
                   {/* user type  */}
-                  <div className="relative w-full mb-6 group">
+                  {/* <div className="relative w-full mb-6 group">
                      <select
                         name="floating_userType"
                         id="floating_userType"
@@ -342,7 +342,7 @@ const Register = () => {
                            This field is required
                         </span>
                      )}
-                  </div>
+                  </div> */}
 
                   {/* Error show  */}
                   {error && <p className="text-red-500">
