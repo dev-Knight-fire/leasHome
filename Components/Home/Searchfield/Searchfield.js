@@ -18,137 +18,92 @@ const Searchfield = () => {
   } = useForm();
 
   const onSubmit = (data) => {
-    // console.log(data);
-    fetch("https://server-fare-bd.vercel.app/search", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
+    console.log(data);
+    router.push(
+      {
+        pathname: "/properties",
+        query: {
+          data: JSON.stringify(data),
+        },
       },
-      body: JSON.stringify(data),
-    })
-      .then((res) => res.json())
-      .then((allData) => {
-        router.push(
-          {
-            pathname: "/searchResult",
-            query: {
-              data: JSON.stringify(allData),
-            },
-          },
-          "/searchResult"
-        );
-      });
+      "/properties"
+    );
   };
 
   return (
-    <div className="max-w-4xl -mt-10 mb-16 mx-4 md:mx-auto shadow-lg border rounded-2xl p-10 text-white bg-primary bg-opacity-50">
-      <form
-        className="flex flex-col justify-center items-center"
-        onSubmit={handleSubmit(onSubmit)}
-      >
-        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5 md:gap-8 lg:gap-y-0 lg:gap-x-12 w-full">
-
-          {/* Location Input */}
-          <div className="relative w-full mb-6 group flex flex-col">
-            <label
-              htmlFor="location"
-              className="font-semibold text-lg pl-1"
-            >
-              Location
-            </label>
-            <input
-              id="location"
-              type="text"
-              placeholder="Enter location (city, area, or address)"
-              className="focus:outline-none rounded-md py-2.5 px-3 text-primary"
-              {...register("location")}
-            />
-          </div>
-
-          <div className="relative w-full mb-6 group flex flex-col">
-            <label htmlFor="purpose" className="font-semibold text-lg pl-1">
-              Purpose
-            </label>
-            <select
-              id="purpose"
-              className="focus:outline-none rounded-md py-2.5 text-primary"
-              {...register("purpose")}
-              onChange={(e) => setPropertyPurpose(e.target.value)}
-              defaultValue={""}
-            >
-              <option value="">
-                Select Purpose
-              </option>
-              <option value="lease">Lease</option>
-              <option value="rental">Rental with Option to Buy</option>
-              <option value="long_term">Long-Term Rental</option>
-            </select>
-          </div>
-          <div className="relative w-full mb-6 group flex flex-col">
-            <label
-              htmlFor="areaType"
-              className="font-semibold text-lg pl-1"
-            >
-              Property Type
-            </label>
-            <select
-              id="areaType"
-              className="focus:outline-none rounded-md py-2.5 text-primary"
-              {...register("areaType")}
-              onChange={(e) => setDefineOption(e.target.value)}
-              defaultValue={""}
-            >
-              <option value="">
-                Select Property Type
-              </option>
-              <option value="plot">Plot</option>
-              <option value="building">Building</option>
-            </select>
-          </div>
-          <div className="relative w-full mb-6 group flex flex-col">
-            <label
-              htmlFor="accessibility"
-              className="font-semibold text-lg pl-1"
-            >
-              Accessibility
-            </label>
-            <select
-              id="accessibility"
-              className="focus:outline-none rounded-md py-2.5 text-primary"
-              {...register("accessibility")}
-              defaultValue={""}
-            >
-              <option value="">Select Accessibility</option>
-              <option value="gravel road">Gravel Road</option>
-              <option value="paved road">Paved Road</option>
-              <option value="asphalt">Asphalt</option>
-              <option value="concrete road">Concrete Road</option>
-            </select>
-          </div>
-
-        </div>
-        <button
-          type="submit"
-          className="focus:outline-none
-               text-white
-               bg-secondary
-               hover:bg-opacity-80
-               rounded-md
-               focus:ring-4
-               focus:ring-green-300
-               font-medium
-               text-lg px-5 py-2.5
-               dark:bg-green-600
-               dark:hover:bg-green-700
-               dark:focus:ring-green-800
-               border
-               hover:border-gray-300 
-               lg:w-1/5 w-1/2 sm:w-1/3 mt-5 lg:mt-0
-               flex items-center gap-2 justify-center"
+    <div className="flex justify-center items-center min-h-[350px]">
+      <div className="w-full max-w-4xl bg-primary bg-opacity-60 rounded-2xl shadow-xl p-8 md:p-12 mx-4">
+        <form
+          className="flex flex-col items-center justify-center gap-8"
+          onSubmit={handleSubmit(onSubmit)}
         >
-          <VscSearch className="font-bold" size={24} /> Find
-        </button>
-      </form>
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Location Input */}
+            <div className="flex flex-col items-center w-full">
+              <label
+                htmlFor="location"
+                className="font-semibold text-lg text-white mb-2 self-start"
+              >
+                Location
+              </label>
+              <input
+                id="location"
+                type="text"
+                placeholder="Enter location (city, area, or address)"
+                className="w-full rounded-lg py-3 px-4 text-primary bg-white bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-secondary transition"
+                {...register("location")}
+              />
+            </div>
+            {/* Purpose Select */}
+            <div className="flex flex-col items-center w-full">
+              <label
+                htmlFor="purpose"
+                className="font-semibold text-lg text-white mb-2 self-start"
+              >
+                Purpose
+              </label>
+              <select
+                id="purpose"
+                className="w-full rounded-lg py-3 px-4 text-primary bg-white bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-secondary transition"
+                {...register("purpose")}
+                onChange={(e) => setPropertyPurpose(e.target.value)}
+                defaultValue={""}
+              >
+                <option value="">Select Purpose</option>
+                <option value="lease">Lease</option>
+                <option value="rental">Rental with Option to Buy</option>
+                <option value="long_term">Long-Term Rental</option>
+              </select>
+            </div>
+            {/* Property Type Select */}
+            <div className="flex flex-col items-center w-full md:col-span-2">
+              <label
+                htmlFor="areaType"
+                className="font-semibold text-lg text-white mb-2 self-start"
+              >
+                Property Type
+              </label>
+              <select
+                id="areaType"
+                className="w-full rounded-lg py-3 px-4 text-primary bg-white bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-secondary transition"
+                {...register("areaType")}
+                onChange={(e) => setDefineOption(e.target.value)}
+                defaultValue={""}
+              >
+                <option value="">Select Property Type</option>
+                <option value="plot">Plot</option>
+                <option value="building">Building</option>
+              </select>
+            </div>
+          </div>
+          <button
+            type="submit"
+            className="flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/90 text-white font-semibold text-lg rounded-lg px-8 py-3 mt-2 shadow-lg transition focus:outline-none focus:ring-4 focus:ring-secondary/30"
+          >
+            <VscSearch className="font-bold" size={24} /> Find
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

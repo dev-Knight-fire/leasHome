@@ -23,6 +23,20 @@ const properties = () => {
     const [searchLocation, setSearchLocation] = useState('');
     const [searchType, setSearchType] = useState('');
     const [searchLeaseType, setSearchLeaseType] = useState('');
+    
+    // Parse search data from URL query
+    useEffect(() => {
+        if (router.query.data) {
+            try {
+                const searchData = JSON.parse(router.query.data);
+                setSearchLocation(searchData.location || '');
+                setSearchType(searchData.areaType || '');
+                setSearchLeaseType(searchData.purpose || '');
+            } catch (error) {
+                console.error('Error parsing search data:', error);
+            }
+        }
+    }, [router.query.data]);
 
     // For dropdown options
     const [locationOptions, setLocationOptions] = useState([]);
@@ -95,9 +109,35 @@ const properties = () => {
     // Filtered items based on search
     const filteredItems = useMemo(() => {
         return properties.filter(item => {
-            const matchesLocation = searchLocation ? item.location === searchLocation : true;
+            // Location matching (case-insensitive partial match)
+            const matchesLocation = searchLocation 
+                ? item.location?.toLowerCase().includes(searchLocation.toLowerCase()) 
+                : true;
+            
+            // Type matching (exact match)
             const matchesType = searchType ? item.type === searchType : true;
-            const matchesLeaseType = searchLeaseType ? item.leaseType === searchLeaseType : true;
+            
+            // Lease type matching (case-insensitive and flexible matching)
+            let matchesLeaseType = true;
+            if (searchLeaseType && item.leaseType) {
+                const searchValue = searchLeaseType.toLowerCase();
+                const itemValue = item.leaseType.toLowerCase();
+                
+                switch (searchValue) {
+                    case 'lease':
+                        matchesLeaseType = itemValue.includes('lease');
+                        break;
+                    case 'rental':
+                        matchesLeaseType = itemValue.includes('rental with') || itemValue.includes('option');
+                        break;
+                    case 'long_term':
+                        matchesLeaseType = itemValue.includes('long') || itemValue.includes('term');
+                        break;
+                    default:
+                        matchesLeaseType = itemValue.includes(searchValue);
+                }
+            }
+            
             return matchesLocation && matchesType && matchesLeaseType;
         });
     }, [properties, searchLocation, searchType, searchLeaseType]);
@@ -154,18 +194,15 @@ const properties = () => {
                 <div className="flex flex-col md:flex-row md:items-end md:justify-center gap-4">
                     <div className="w-full md:w-1/4">
                         <label htmlFor="searchLocation" className="block text-left mb-1 font-medium text-gray-700">Location</label>
-                        <select
+                        <input
+                            type="text"
                             id="searchLocation"
                             value={searchLocation}
                             onChange={e => setSearchLocation(e.target.value)}
+                            placeholder="Enter location..."
                             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                            aria-label="Select location"
-                        >
-                            <option value="">All Locations</option>
-                            {locationOptions.map(loc => (
-                                <option key={loc} value={loc}>{loc}</option>
-                            ))}
-                        </select>
+                            aria-label="Enter location"
+                        />
                     </div>
                     <div className="w-full md:w-1/4">
                         <label htmlFor="searchType" className="block text-left mb-1 font-medium text-gray-700">Property Type</label>
@@ -177,24 +214,23 @@ const properties = () => {
                             aria-label="Select property type"
                         >
                             <option value="">All Types</option>
-                            {typeOptions.map(type => (
-                                <option key={type} value={type}>{type}</option>
-                            ))}
+                            <option value="plot">Plot</option>
+                            <option value="building">Building</option>
                         </select>
                     </div>
                     <div className="w-full md:w-1/4">
-                        <label htmlFor="searchLeaseType" className="block text-left mb-1 font-medium text-gray-700">Lease Type</label>
+                        <label htmlFor="searchLeaseType" className="block text-left mb-1 font-medium text-gray-700">Purpose</label>
                         <select
                             id="searchLeaseType"
                             value={searchLeaseType}
                             onChange={e => setSearchLeaseType(e.target.value)}
                             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                            aria-label="Select lease type"
+                            aria-label="Select purpose"
                         >
-                            <option value="">All Lease Types</option>
-                            {leaseTypeOptions.map(leaseType => (
-                                <option key={leaseType} value={leaseType}>{leaseType}</option>
-                            ))}
+                            <option value="">All Purposes</option>
+                            <option value="lease">Lease</option>
+                            <option value="rental">Rental with Option to Buy</option>
+                            <option value="long_term">Long-Term Rental</option>
                         </select>
                     </div>
                     <div className="w-full md:w-auto flex gap-2">
@@ -207,7 +243,7 @@ const properties = () => {
                         <button
                             type="button"
                             onClick={handleClearFilters}
-                            className="px-6 py-2 bg-red-500 text-white font-semibold rounded-md shadow hover:bg-gray-600 transition"
+                            className="px-6 py-2 bg-red-500 text-white font-semibold rounded-md shadow hover:bg-red-600 transition"
                         >
                             Clear
                         </button>
@@ -215,7 +251,7 @@ const properties = () => {
                 </div>
             </form>
 
-            {/* Results count */}
+            {/* Results count and search info */}
             <div className="text-left mb-4">
                 <p className="text-gray-600">
                     Showing {currentItems.length} of {filteredItems.length} properties
@@ -225,6 +261,29 @@ const properties = () => {
                         </span>
                     )}
                 </p>
+                
+                {/* Show active search filters */}
+                {(searchLocation || searchType || searchLeaseType) && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {searchLocation && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                                Location: {searchLocation}
+                            </span>
+                        )}
+                        {searchType && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+                                Type: {searchType}
+                            </span>
+                        )}
+                        {searchLeaseType && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
+                                Purpose: {searchLeaseType === 'lease' ? 'Lease' : 
+                                         searchLeaseType === 'rental' ? 'Rental with Option to Buy' : 
+                                         searchLeaseType === 'long_term' ? 'Long-Term Rental' : searchLeaseType}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
