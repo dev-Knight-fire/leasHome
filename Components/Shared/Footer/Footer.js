@@ -70,22 +70,10 @@ const Footer = () => {
                   </ul>
                </div>
                <div>
-                  <h2 className="mb-6 text-2xl font-semibold dark:text-white">Rent with us</h2>
+                  <h2 className="mb-6 text-2xl font-semibold dark:text-white">My Properties</h2>
                   <ul className="dark:text-gray-400">
                      <li>
-                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Rent a House</Link>
-                     </li>
-                     <li>
-                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Book Now</Link>
-                     </li>
-                     <li>
-                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Book your Rooms</Link>
-                     </li>
-                     <li>
-                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Buy your Place</Link>
-                     </li>
-                     <li>
-                        <Link href="#" className="hover:underline flex items-center"><IoIosArrowForward />Privacy Policy</Link>
+                        <Link href="/userprofile" className="hover:underline flex items-center"><IoIosArrowForward />My Profile</Link>
                      </li>
                   </ul>
                </div>
@@ -114,7 +102,7 @@ const Footer = () => {
                            </div>
                         </Link>
                      </li>
-                     <li className="mb-4 hover:underline">
+                     {/* <li className="mb-4 hover:underline">
                         <Link href="/support">
                            <div className='flex gap-4 items-center'>
                               <span className="w-10 h-10 flex items-center justify-center bg-secondary text-white rounded-md border text-xl font-bold">🛠️</span>
@@ -124,7 +112,7 @@ const Footer = () => {
                               </div>
                            </div>
                         </Link>
-                     </li>
+                     </li> */}
                   </ul>
                </div>
             </div>
