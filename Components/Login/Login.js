@@ -75,6 +75,7 @@ const Login = () => {
         role: "user",
         createdAt,
         img: photoURL,
+        status: "pending"
       };
 
       // Check if user already exists in Firestore

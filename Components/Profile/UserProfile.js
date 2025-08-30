@@ -8,9 +8,11 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } 
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 const UserProfile = () => {
    const { user, loading } = useAuth();
+   const router = useRouter();
    const [activeTab, setActiveTab] = useState('account');
    const [userData, setUserData] = useState(null);
    const [userProperties, setUserProperties] = useState([]);
@@ -92,7 +94,7 @@ const UserProfile = () => {
             photoURL: editForm.photoURL,
             updatedAt: new Date()
          });
-         
+
          setUserData(prev => ({ ...prev, ...editForm }));
          setIsEditing(false);
          toast.success('Profile updated successfully!');
@@ -148,27 +150,27 @@ const UserProfile = () => {
 
       try {
          setPhotoEditor(prev => ({ ...prev, isUploading: true }));
-         
+
          // Create a unique filename
          const timestamp = Date.now();
          const fileName = `profile-photos/${user.email}/${timestamp}_${photoEditor.selectedFile.name}`;
          const storageRef = ref(storage, fileName);
-         
+
          // Upload the file
          const snapshot = await uploadBytes(storageRef, photoEditor.selectedFile);
          const downloadURL = await getDownloadURL(snapshot.ref);
-         
+
          // Update user data
          const userRef = doc(db, 'users', user.email);
          await updateDoc(userRef, {
             photoURL: downloadURL,
             updatedAt: new Date()
          });
-         
+
          // Update local state
          setUserData(prev => ({ ...prev, photoURL: downloadURL }));
          setEditForm(prev => ({ ...prev, photoURL: downloadURL }));
-         
+
          // Close editor
          setPhotoEditor({
             isOpen: false,
@@ -177,7 +179,7 @@ const UserProfile = () => {
             isUploading: false,
             dragActive: false
          });
-         
+
          toast.success('Profile photo updated successfully!');
       } catch (error) {
          console.error('Error uploading photo:', error);
@@ -238,30 +240,40 @@ const UserProfile = () => {
                         <User className="w-6 h-6 mr-2 text-primary" />
                         My Profile
                      </h2>
-                     
+
                      <nav className="space-y-2">
                         <button
                            onClick={() => setActiveTab('account')}
-                           className={`w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${
-                              activeTab === 'account'
+                           className={`w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${activeTab === 'account'
                                  ? 'bg-primary text-white shadow-md'
                                  : 'text-gray-600 hover:bg-gray-100'
-                           }`}
+                              }`}
                         >
                            <User className="w-5 h-5 mr-3" />
                            My Account
                         </button>
-                        <button
-                           onClick={() => setActiveTab('properties')}
-                           className={`w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${
-                              activeTab === 'properties'
-                                 ? 'bg-primary text-white shadow-md'
-                                 : 'text-gray-600 hover:bg-gray-100'
-                           }`}
-                        >
-                           <Home className="w-5 h-5 mr-3" />
-                           My Properties
-                        </button>
+                        {user.role === "admin" ?
+                           <button
+                              onClick={() => router.push('/admin/allproperties')}
+                              className={`w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${activeTab === 'properties'
+                                    ? 'bg-primary text-white shadow-md'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                                 }`}
+                           >
+                              <Home className="w-5 h-5 mr-3" />
+                              All Properties
+                           </button> :
+                           <button
+                              onClick={() => setActiveTab('properties')}
+                              className={`w-full flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${activeTab === 'properties'
+                                    ? 'bg-primary text-white shadow-md'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                                 }`}
+                           >
+                              <Home className="w-5 h-5 mr-3" />
+                              My Properties
+                           </button>
+                        }
                      </nav>
                   </div>
                </div>
@@ -564,11 +576,10 @@ const UserProfile = () => {
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
-                        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                           photoEditor.dragActive
+                        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${photoEditor.dragActive
                               ? 'border-primary bg-primary/5'
                               : 'border-gray-300 hover:border-gray-400'
-                        }`}
+                           }`}
                      >
                         {photoEditor.preview ? (
                            <div className="space-y-4">

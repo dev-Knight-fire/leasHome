@@ -79,7 +79,8 @@ const Register = () => {
             email, 
             role: 'user', 
             createdAt, 
-            img: photoURL 
+            img: photoURL,
+            status: "pending"
          };
 
          // Save to Firestore
@@ -148,7 +149,8 @@ const Register = () => {
             email: email, 
             img: imageURL, 
             role: userType || 'user', 
-            createdAt: new Date().toISOString() 
+            createdAt: new Date().toISOString(),
+            status: "pending"
          };
 
          await setDoc(doc(db, "users", email), insertUser);

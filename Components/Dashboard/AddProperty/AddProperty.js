@@ -56,7 +56,7 @@ function AddProperty({ propertyId }) {
         const propertyData = propertyDoc.data();
         
         // Check if user owns this property
-        if (propertyData.createdBy?.email !== user.email) {
+        if ((propertyData.createdBy?.email !== user.email) && user.role !== "admin") {
           toast.error("You can only edit your own properties");
           router.push("/properties");
           return;
