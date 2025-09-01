@@ -186,7 +186,8 @@ const SinglePropertyPage = ({ propertyDetails }) => {
                   <img
                     src={data.photos[currentSlide]}
                     alt={`property_picture_${currentSlide}`}
-                    className="w-full h-[500px] object-cover"
+                    className="w-full object-contain"
+                    style={{ maxHeight: "500px" }}
                   />
                   {data.photos.length > 1 && (
                     <>
