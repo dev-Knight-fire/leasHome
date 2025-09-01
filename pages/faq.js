@@ -20,7 +20,7 @@ const faqs = [
     ),
   },
   {
-    question: "How does the Cooper Calculator work?",
+    question: "How does the Cooper Index work?",
     answer: (
       <>
         The Cooper Calculator is a points-based tool that helps you assess your eligibility for a lease or rental—without checking BIK. Answer a few questions and get an instant, objective score.{" "}

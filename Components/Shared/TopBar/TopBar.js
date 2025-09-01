@@ -16,11 +16,11 @@ const TopBar = () => {
                </div>
                <div className='flex space-x-2'>
                   <div className="text-white text-xs"><FaPhoneAlt></FaPhoneAlt></div>
-                  <p className="text-white text-xs">+48781909771</p>
+                  <p className="text-white text-xs">+48 605 556 858</p>
                </div>
                <div className='flex space-x-2'>
                   <div className='text-white text-xs'><FaRegEnvelope></FaRegEnvelope> </div>
-                  <p className="text-white text-xs">it4senior25@gmail.com</p>
+                  <p className="text-white text-xs">leashome@auroravitae.com</p>
                </div>
             </div>
 

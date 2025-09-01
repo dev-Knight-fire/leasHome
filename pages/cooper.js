@@ -221,7 +221,10 @@ const CooperCalculator = () => {
       <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">Cooper Calculator</h1>
-          <p className="text-gray-600">Calculate your lease application score</p>
+          <h2 className="text-2xl font-semibold text-gray-700 mb-3">Calculate your lease application score</h2>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            The Cooper Calculator is a points-based tool that helps you assess your eligibility for a lease or rental-without checking BIK. Answer a few questions and get an instant, objective score.
+          </p>
         </div>
         
         <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-6">

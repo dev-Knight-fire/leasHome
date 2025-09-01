@@ -39,10 +39,10 @@ const Footer = () => {
                   <h2 className="mb-6 text-2xl font-semibold dark:text-white">Contact Us</h2>
                   <ul className="dark:text-gray-400">
                      <li>
-                        <p className="flex items-center gap-2 mb-2"><FiPhoneCall />(+48)781909771</p>
+                        <p className="flex items-center gap-2 mb-2"><FiPhoneCall />(+48) 605 556 858</p>
                      </li>
                      <li>
-                        <p className="flex items-center gap-2 mb-2"><TfiEmail />it4senior25@gmail.com</p>
+                        <p className="flex items-center gap-2 mb-2"><TfiEmail />leashome@auroravitae.com</p>
                      </li>
                      <li>
                         <p className="flex items-center gap-2 mb-2"><IoLocationOutline />8 The Green Suite 8, Dover, 19901 Delaware, USA</p>
