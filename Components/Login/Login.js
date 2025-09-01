@@ -18,7 +18,7 @@ import {
    updateProfile,
    sendPasswordResetEmail 
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 
 const Login = () => {
@@ -67,7 +67,7 @@ const Login = () => {
 
   const saveUserToFirestore = async (displayName, email, photoURL) => {
     try {
-      const createdAt = new Date().toISOString();
+      const createdAt = serverTimestamp();
       
       const userData = {
         name: displayName,

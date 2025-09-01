@@ -319,6 +319,17 @@ const SinglePropertyPage = ({ propertyDetails }) => {
                         scope="row"
                         className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
                       >
+                        Area
+                      </th>
+                      <td className="px-6 py-4">
+                        {data.area && data.areaUnit ? `${data.area} ${data.areaUnit}` : 'Not specified'}
+                      </td>
+                    </tr>
+                    <tr className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                      <th
+                        scope="row"
+                        className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
+                      >
                         Accessibility
                       </th>
                       <td className="px-6 py-4">{data.accessibility}</td>

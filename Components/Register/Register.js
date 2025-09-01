@@ -16,7 +16,7 @@ import {
    updateProfile, 
    signInWithPopup 
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const Register = () => {
@@ -72,7 +72,7 @@ const Register = () => {
 
    const saveUserToFirestore = async (displayName, email, photoURL) => {
       try {
-         const createdAt = new Date().toISOString();
+         const createdAt = serverTimestamp();
          
          const userData = { 
             name: displayName, 
@@ -149,7 +149,7 @@ const Register = () => {
             email: email, 
             img: imageURL, 
             role: userType || 'user', 
-            createdAt: new Date().toISOString(),
+            createdAt: serverTimestamp(),
             status: "pending"
          };
 

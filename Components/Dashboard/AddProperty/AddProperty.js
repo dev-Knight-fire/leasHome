@@ -74,6 +74,8 @@ function AddProperty({ propertyId }) {
         setValue("title", propertyData.title);
         setValue("description", propertyData.description);
         setValue("price", propertyData.price);
+        setValue("area", propertyData.area);
+        setValue("areaUnit", propertyData.areaUnit);
         setValue("water", propertyData.utilities?.water ? "yes" : "no");
         setValue("electricity", propertyData.utilities?.electricity ? "yes" : "no");
         setValue("sewer", propertyData.utilities?.sewer ? "yes" : "no");
@@ -186,6 +188,8 @@ function AddProperty({ propertyId }) {
         title: data.title,
         description: data.description,
         price: Number(data.price),
+        area: Number(data.area),
+        areaUnit: data.areaUnit,
         leaseType: data.leaseType,
         utilities: {
           water: data.water === "yes",
@@ -359,7 +363,7 @@ function AddProperty({ propertyId }) {
 
           {/* Price */}
           <div className="mb-6">
-            <label className="block mb-2 font-semibold text-gray-900">Monthly Payment (USD)</label>
+            <label className="block mb-2 font-semibold text-gray-900">Monthly Payment (USD per month)</label>
             <input
               type="number"
               min={0}
@@ -370,6 +374,41 @@ function AddProperty({ propertyId }) {
             {errors.price && (
               <p className="text-red-600 text-xs mt-1">Price is required and must be positive</p>
             )}
+          </div>
+
+          {/* Area */}
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold text-gray-900">Area</label>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  placeholder="Enter area"
+                  {...register("area", { required: true, min: 0 })}
+                  className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.area ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+                />
+                {errors.area && (
+                  <p className="text-red-600 text-xs mt-1">Area is required and must be positive</p>
+                )}
+              </div>
+              <div className="w-32">
+                <select
+                  {...register("areaUnit", { required: true })}
+                  className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.areaUnit ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+                >
+                  <option value="">Unit</option>
+                  <option value="m²">m²</option>
+                  <option value="ha">ha</option>
+                  <option value="sq ft">sq ft</option>
+                  <option value="acre">acre</option>
+                </select>
+                {errors.areaUnit && (
+                  <p className="text-red-600 text-xs mt-1">Unit is required</p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Photos */}
