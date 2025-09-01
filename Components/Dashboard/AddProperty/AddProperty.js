@@ -6,6 +6,7 @@ import { toast } from "react-hot-toast";
 import { db } from "@/Firebase/firestore";
 import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { MapPin, X } from "lucide-react";
 
 function AddProperty({ propertyId }) {
   const router = useRouter();
@@ -20,6 +21,15 @@ function AddProperty({ propertyId }) {
   const [existingPhotos, setExistingPhotos] = useState([]);
   const fileInputRef = useRef(null);
   
+  // Location autocomplete states
+  const [locationInput, setLocationInput] = useState("");
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const locationInputRef = useRef(null);
+  const suggestionsRef = useRef(null);
+  
   const isEditMode = !!propertyId;
 
   const {
@@ -33,6 +43,91 @@ function AddProperty({ propertyId }) {
   } = useForm();
 
   const watchedLeaseType = watch("leaseType", leaseType);
+
+  // Location search and autocomplete functionality
+  const searchLocations = async (query) => {
+    if (!query || query.length < 2) {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsLoadingLocations(true);
+    try {
+      // Using OpenStreetMap Nominatim API for free worldwide location search
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1&accept-language=en`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const suggestions = data.map(item => ({
+          id: item.place_id,
+          displayName: item.display_name,
+          name: item.name || item.display_name.split(',')[0],
+          city: item.address?.city || item.address?.town || item.address?.village || '',
+          state: item.address?.state || '',
+          country: item.address?.country || '',
+          lat: item.lat,
+          lon: item.lon,
+          type: item.type
+        }));
+        
+        setLocationSuggestions(suggestions);
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      setLocationSuggestions([]);
+    } finally {
+      setIsLoadingLocations(false);
+    }
+  };
+
+  // Handle location input change
+  const handleLocationChange = (e) => {
+    const value = e.target.value;
+    setLocationInput(value);
+    setValue("location", value);
+    
+    if (value.length >= 2) {
+      searchLocations(value);
+    } else {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Handle location selection
+  const handleLocationSelect = (location) => {
+    setSelectedLocation(location.displayName);
+    setLocationInput(location.displayName);
+    setValue("location", location.displayName);
+    setShowSuggestions(false);
+    setLocationSuggestions([]);
+  };
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target) &&
+          locationInputRef.current && !locationInputRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Clear location input
+  const clearLocation = () => {
+    setLocationInput("");
+    setSelectedLocation("");
+    setValue("location", "");
+    setLocationSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   // Fetch property data if in edit mode
   useEffect(() => {
@@ -71,6 +166,8 @@ function AddProperty({ propertyId }) {
         setValue("type", propertyData.type);
         setValue("leaseType", propertyData.leaseType);
         setValue("location", propertyData.location);
+        setLocationInput(propertyData.location || "");
+        setSelectedLocation(propertyData.location || "");
         setValue("title", propertyData.title);
         setValue("description", propertyData.description);
         setValue("price", propertyData.price);
@@ -264,7 +361,7 @@ function AddProperty({ propertyId }) {
           onSubmit={handleSubmit(handleAddProperty)}
           className="p-8 rounded-b-2xl shadow-xl bg-white"
         >
-          {/* Type, Lease Type & Location */}
+          {/* Type & Lease Type */}
           <div className="flex flex-col md:flex-row gap-6 mb-6">
             <div className="flex-1">
               <label className="block mb-2 font-semibold text-gray-900">Type</label>
@@ -301,18 +398,83 @@ function AddProperty({ propertyId }) {
                 <p className="text-red-600 text-xs mt-1">Lease type is required</p>
               )}
             </div>
-            <div className="flex-1">
-              <label className="block mb-2 font-semibold text-gray-900">Location</label>
+          </div>
+
+          {/* Location Field - Full Width */}
+          <div className="mb-6" ref={locationInputRef}>
+            <label className="block mb-2 font-semibold text-gray-900">Location</label>
+            <div className="relative">
               <input
                 type="text"
-                placeholder="Enter location"
-                {...register("location", { required: true })}
-                className={`w-full border-2 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.location ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900`}
+                placeholder="Enter location (city, area, or address)"
+                value={locationInput}
+                onChange={handleLocationChange}
+                className={`w-full border-2 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${errors.location ? "border-green-600" : "border-gray-300"} bg-gray-50 text-gray-900 text-lg`}
               />
-              {errors.location && (
-                <p className="text-red-600 text-xs mt-1">Location is required</p>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
+                {locationInput && (
+                  <button
+                    type="button"
+                    onClick={clearLocation}
+                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+                <MapPin className="w-6 h-6 text-gray-400" />
+              </div>
+              
+              {/* Location Suggestions Dropdown */}
+              {showSuggestions && (
+                <div 
+                  ref={suggestionsRef}
+                  className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto"
+                >
+                  {isLoadingLocations ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500 mx-auto"></div>
+                      <p className="mt-2">Searching locations...</p>
+                    </div>
+                  ) : locationSuggestions.length > 0 ? (
+                    <div className="py-2">
+                      {locationSuggestions.map((location) => (
+                        <button
+                          key={location.id}
+                          type="button"
+                          onClick={() => handleLocationSelect(location)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="flex items-start space-x-3">
+                            <MapPin className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">
+                                {location.name}
+                              </div>
+                              <div className="text-sm text-gray-500 truncate">
+                                {location.city && location.state ? `${location.city}, ${location.state}` : 
+                                 location.city || location.state || ''}
+                              </div>
+                              {location.country && (
+                                <div className="text-xs text-gray-400 truncate">
+                                  {location.country}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : locationInput.length >= 2 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      No locations found
+                    </div>
+                  ) : null}
+                </div>
               )}
             </div>
+            {errors.location && (
+              <p className="text-red-600 text-xs mt-1">Location is required</p>
+            )}
           </div>
 
           {/* Full value of property (conditional) */}
