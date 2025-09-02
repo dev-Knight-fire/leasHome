@@ -67,7 +67,7 @@ const templates = [
 const leaseTypes = [
   {
     type: "Lease",
-    duration: "Typically 1+ years",
+    duration: "Typically 10+ years",
     features: [
       "Fixed term",
       "Stable rent",
