@@ -17,27 +17,32 @@ const legalGuides = [
   {
     title: "Understanding Lease Agreements",
     desc: "A comprehensive guide to the essentials of lease contracts, including rights, obligations, and key clauses.",
-    link: "#",
+    link: "https://docs.google.com/document/d/1Xo7fmZHm3yBUjn_HgkYkyB9dnYLG3sR6",
+    linkPl: "https://docs.google.com/document/d/1tBodOASWPK2QnUwE2EHA5KdBTNbetdPF",
   },
   {
     title: "Rental vs. Lease: Key Differences",
     desc: "Learn the legal and practical differences between standard rentals, leases, and long-term rental agreements.",
-    link: "#",
+    link: "https://docs.google.com/document/d/1Xo7fmZHm3yBUjn_HgkYkyB9dnYLG3sR6/edit#heading=h.1vj6i591gfuc",
+    linkPl: "https://docs.google.com/document/d/1tBodOASWPK2QnUwE2EHA5KdBTNbetdPF/edit#heading=h.53stg7ictc4w",
   },
   {
     title: "Long-Term Rental: What to Know",
     desc: "Explore the unique aspects of long-term rental deals (5+ years), including legal protections and risks.",
-    link: "#",
+    link: "https://docs.google.com/document/d/1Xo7fmZHm3yBUjn_HgkYkyB9dnYLG3sR6/edit#heading=h.kou3kz74c8bq",
+    linkPl: "https://docs.google.com/document/d/1tBodOASWPK2QnUwE2EHA5KdBTNbetdPF/edit#heading=h.7bw3oefk8e4d",
   },
   {
     title: "Purchase Options in Lease Deals",
     desc: "How purchase options work in lease agreements and what to consider before signing.",
-    link: "#",
+    link: "https://docs.google.com/document/d/1Xo7fmZHm3yBUjn_HgkYkyB9dnYLG3sR6/edit#heading=h.6rz99ibbrfqi",
+    linkPl: "https://docs.google.com/document/d/1tBodOASWPK2QnUwE2EHA5KdBTNbetdPF/edit#heading=h.rtx4pjtx0cif",
   },
   {
     title: "Investor & Leasing Company Guide",
     desc: "Legal and strategic considerations for investors and leasing companies entering property deals.",
-    link: "#",
+    link: "https://docs.google.com/document/d/1Xo7fmZHm3yBUjn_HgkYkyB9dnYLG3sR6/edit#heading=h.tl2nq2ljsq1d",
+    linkPl: "https://docs.google.com/document/d/1tBodOASWPK2QnUwE2EHA5KdBTNbetdPF/edit#heading=h.40hf8k1bzhbd",
   },
 ];
 
@@ -45,22 +50,26 @@ const templates = [
   {
     title: "Standard Lease Agreement",
     desc: "A ready-to-use template for property lease deals.",
-    link: "#",
+    linkEn: "https://docs.google.com/document/d/1FG_PGdYO_GK58wcu7pC5WKbUiyO7_UU5",
+    linkPl: "https://docs.google.com/document/d/1r7_waS7rwGfKZJ7GHxv8kXFYi71xk4ui",
   },
   {
     title: "Rental Agreement Template",
     desc: "Template for short-term and month-to-month rental arrangements.",
-    link: "#",
+    linkEn: "https://docs.google.com/document/d/1Ujirf_CWvQ1JcGgk870gBCvgpvA5KJ30",
+    linkPl: "https://docs.google.com/document/d/1rr5SC19L0QRNOypR-DBXxV30u7KL_Wbh",
   },
   {
     title: "Long-Term Rental Contract",
     desc: "Template for rentals of 5+ years, including special clauses.",
-    link: "#",
+    linkEn: "https://docs.google.com/document/d/1hbi_R7gHgualybefEXev2VmIMhUaCL2B",
+    linkPl: "https://docs.google.com/document/d/1MHK_Cwiio6xKqR2a9okhD9x9txnwnxHb",
   },
   {
     title: "Lease with Purchase Option",
     desc: "Template for lease agreements that include a purchase option.",
-    link: "#",
+    linkEn: "https://docs.google.com/document/d/1YCi8HSfbYJABSEsRtYG-K7cNG5zaA0-p",
+    linkPl: "https://docs.google.com/document/d/1G5vU1CVXeVXxOB8a3lpdIFsNQI7RwZQ2",
   },
 ];
 
@@ -288,10 +297,16 @@ const Knowledge = () => {
                     >
                       <p className="mb-2 text-slate-600">{guide.desc}</p>
                       <button
-                        className="rounded-full border border-blue-600 text-blue-600 px-5 py-1 text-[0.95rem] font-medium opacity-60 bg-transparent pointer-events-none"
-                        disabled
+                        className="rounded-full border border-blue-600 text-blue-600 px-5 py-1 text-[0.95rem] font-medium bg-transparent mr-2"
+                        onClick={() => window.open(guide.link, '_blank')}
                       >
-                        Read More
+                        Read More(En)
+                      </button>
+                      <button
+                        className="rounded-full border border-blue-600 text-blue-600 px-5 py-1 text-[0.95rem] font-medium bg-transparent"
+                        onClick={() => window.open(guide.linkPl, '_blank')}
+                      >
+                        Read More(Pl)
                       </button>
                     </div>
                   </div>
@@ -318,10 +333,16 @@ const Knowledge = () => {
                         {tpl.desc}
                       </div>
                       <button
-                        className="rounded-full bg-green-600 text-white px-5 py-1 text-[0.95rem] font-medium opacity-60 pointer-events-none"
-                        disabled
+                        className="rounded-full bg-green-600 text-white px-5 py-1 text-[0.95rem] font-medium mr-2"
+                        onClick={() => window.open(tpl.linkEn, '_blank')}
                       >
-                        Download
+                        Download(En)
+                      </button>
+                      <button
+                        className="rounded-full bg-green-600 text-white px-5 py-1 text-[0.95rem] font-medium"
+                        onClick={() => window.open(tpl.linkPl, '_blank')}
+                      >
+                        Download(Pl)
                       </button>
                     </div>
                   </div>
