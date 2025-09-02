@@ -7,7 +7,7 @@ const Hero = () => {
       <div
         className="flex min-h-[800px] h-full  items-end justify-center opacity-100"
         style={{
-          background: `linear-gradient(0deg, #000000 12%, rgba(6, 6, 6, 0) 100%) , url(https://images.pexels.com/photos/323772/pexels-photo-323772.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1)`,
+          background: `linear-gradient(0deg, #000000 12%, rgba(6, 6, 6, 0) 100%) , url(/bg.png)`,
           backgroundRepeat: "no-repeat",
           backgroundSize: "cover",
           backgroundPosition: "center",
